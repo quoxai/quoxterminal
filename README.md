@@ -8,6 +8,8 @@
   A native desktop terminal with built-in AI assistant, SSH client, and fleet management.
   <br />
   Built with <strong>Tauri 2.0</strong>, <strong>Rust</strong>, <strong>React 19</strong>, and <strong>xterm.js</strong>.
+  <br /><br />
+  <strong>Platforms:</strong> macOS &bull; Linux
 </p>
 
 <p align="center">
@@ -58,9 +60,31 @@
 
 ---
 
+## Platform Support
+
+| Platform | Status |
+|----------|--------|
+| macOS (Apple Silicon) | Supported |
+| macOS (Intel) | Supported |
+| Linux (x64) | Supported |
+| Windows | Not supported |
+
+QuoxTerminal is built around Unix shells (zsh, bash, fish). Windows shells (PowerShell, cmd) use fundamentally different APIs, escape sequences, and conventions. Windows support is not planned for v0.x.
+
+---
+
 ## Getting Started
 
-### Prerequisites
+### Download
+
+Grab the latest release from [GitHub Releases](https://github.com/AdaminX/quoxterminal/releases):
+
+- **macOS** — `.dmg` (Apple Silicon or Intel)
+- **Linux** — `.deb` (Debian/Ubuntu) or `.AppImage` (universal)
+
+### Build from Source
+
+#### Prerequisites
 
 - [Node.js](https://nodejs.org/) >= 18
 - [Rust](https://rustup.rs/) (stable toolchain)
@@ -77,7 +101,7 @@ sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
-### Install & Run
+#### Install & Run
 
 ```bash
 cd quox-terminal
@@ -85,7 +109,7 @@ npm install
 npm run tauri dev
 ```
 
-### Build for Production
+#### Build for Production
 
 ```bash
 cd quox-terminal
