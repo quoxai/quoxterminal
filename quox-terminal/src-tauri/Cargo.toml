@@ -30,3 +30,4 @@ russh = "0.46"
 russh-keys = "0.46"
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 base64 = "0.22"
+futures-util = "0.3"

@@ -372,6 +372,52 @@ pub async fn ssh_get_output(
     Ok(session.read_output(chars))
 }
 
+// ── Collector WebSocket Commands ──────────────────────────────────────────────
+
+/// Connect to the collector WebSocket.
+#[tauri::command]
+pub async fn collector_connect(
+    url: String,
+    token: Option<String>,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let auth = token.map(|t| crate::collector::auth::CollectorAuth::new(&url, &t));
+    let mut client = crate::collector::ws_client::CollectorWsClient::new(&url);
+    if let Some(auth) = auth {
+        client = client.with_auth(auth);
+    }
+    client.connect(app_handle).await?;
+
+    let mut collector = state.collector_client.lock().await;
+    *collector = Some(client);
+    Ok(())
+}
+
+/// Disconnect from the collector.
+#[tauri::command]
+pub async fn collector_disconnect(state: State<'_, AppState>) -> Result<(), String> {
+    let mut collector = state.collector_client.lock().await;
+    if let Some(client) = collector.as_mut() {
+        client.disconnect().await?;
+    }
+    *collector = None;
+    Ok(())
+}
+
+/// Get collector connection status.
+#[tauri::command]
+pub async fn collector_status(state: State<'_, AppState>) -> Result<String, String> {
+    let collector = state.collector_client.lock().await;
+    match collector.as_ref() {
+        Some(client) => {
+            let state = client.state();
+            Ok(serde_json::to_string(&state).unwrap_or_else(|_| "\"Unknown\"".to_string()))
+        }
+        None => Ok("\"Disconnected\"".to_string()),
+    }
+}
+
 // ── Bastion / Fleet API Proxy Commands ───────────────────────────────────────
 
 /// Host information from the bastion API.

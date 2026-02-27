@@ -106,6 +106,12 @@ export default function TerminalView() {
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [pendingErrorAction, setPendingErrorAction] = useState<{
+    action: 'explain' | 'fix';
+    errorType: string;
+    errorLine: string;
+    suggestion: string;
+  } | null>(null);
 
   // Per-pane refs for clear/reconnect
   const clearRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
@@ -161,6 +167,29 @@ export default function TerminalView() {
     },
     [updatePane],
   );
+
+  // ── Error → Chat integration ──────────────────────────────────────────
+
+  const handleErrorAction = useCallback(
+    (action: string, error: unknown) => {
+      const err = error as { errorType?: string; errorLine?: string; suggestion?: string };
+      if (action === 'explain' || action === 'fix') {
+        setPendingErrorAction({
+          action: action as 'explain' | 'fix',
+          errorType: err.errorType || 'unknown',
+          errorLine: err.errorLine || '',
+          suggestion: err.suggestion || '',
+        });
+        // Open chat if not already open
+        setChatOpen(true);
+      }
+    },
+    [],
+  );
+
+  const clearPendingErrorAction = useCallback(() => {
+    setPendingErrorAction(null);
+  }, []);
 
   // ── Keyboard shortcut handler ──────────────────────────────────────────
 
@@ -528,6 +557,7 @@ export default function TerminalView() {
               onFocus={handlePaneFocus}
               onClose={handlePaneClose}
               onModeChange={handlePaneModeChange}
+              onErrorAction={handleErrorAction}
               customKeyHandler={handleShortcut}
               clearRef={clearRefs.current[pane.id]}
               reconnectRef={reconnectRefs.current[pane.id]}
@@ -545,6 +575,14 @@ export default function TerminalView() {
             sessionId={
               panes.find((p) => p.id === focusedPaneId)?.sessionId ?? null
             }
+            sessionType={
+              panes.find((p) => p.id === focusedPaneId)?.mode || 'local'
+            }
+            hostId={
+              panes.find((p) => p.id === focusedPaneId)?.hostId || ''
+            }
+            errorAction={pendingErrorAction}
+            onErrorActionConsumed={clearPendingErrorAction}
           />
         )}
       </div>

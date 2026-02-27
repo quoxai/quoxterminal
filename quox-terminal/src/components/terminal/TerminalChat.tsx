@@ -39,11 +39,26 @@ interface ChatMessage {
   pending?: boolean;
 }
 
+interface ErrorAction {
+  action: 'explain' | 'fix';
+  errorType: string;
+  errorLine: string;
+  suggestion: string;
+}
+
 interface TerminalChatProps {
   workspaceId: string;
   isOpen: boolean;
   onClose: () => void;
   sessionId: string | null;
+  /** "local" | "ssh" — type of the focused terminal session */
+  sessionType?: string;
+  /** e.g. "root@docker01" — host info for SSH sessions */
+  hostId?: string;
+  /** Pre-filled error action from ErrorNotificationBar */
+  errorAction?: ErrorAction | null;
+  /** Callback to clear the error action after it's been consumed */
+  onErrorActionConsumed?: () => void;
 }
 
 interface ModelOption {
@@ -155,7 +170,16 @@ function nextId(): string {
   return `msg-${Date.now()}-${++messageIdCounter}`;
 }
 
-export default function TerminalChat({ workspaceId, isOpen, onClose, sessionId }: TerminalChatProps) {
+export default function TerminalChat({
+  workspaceId,
+  isOpen,
+  onClose,
+  sessionId,
+  sessionType = 'local',
+  hostId = '',
+  errorAction = null,
+  onErrorActionConsumed,
+}: TerminalChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -196,7 +220,7 @@ export default function TerminalChat({ workspaceId, isOpen, onClose, sessionId }
     setError(null);
   }, []);
 
-  const sendMessage = useCallback(async (text?: string) => {
+  const sendMessage = useCallback(async (text?: string, errorCtx?: ErrorAction | null) => {
     const messageText = text || inputValue.trim();
     if (!messageText || isProcessing) return;
 
@@ -207,10 +231,19 @@ export default function TerminalChat({ workspaceId, isOpen, onClose, sessionId }
     const userMsg: ChatMessage = { id: nextId(), role: 'user', text: messageText };
     setMessages(prev => [...prev, userMsg]);
 
-    // Build context from terminal output
+    // Build context from terminal output, including session type and error info
     setIsProcessing(true);
     try {
-      const context = await buildTerminalContext(messageText, sessionId, selectedMode);
+      const context = await buildTerminalContext(messageText, sessionId, selectedMode, {
+        sessionType,
+        hostId,
+        errorContext: errorCtx ? {
+          errorType: errorCtx.errorType,
+          errorLine: errorCtx.errorLine,
+          suggestion: errorCtx.suggestion,
+          action: errorCtx.action,
+        } : null,
+      });
       const systemPrompt = composeSystemPrompt(selectedMode);
 
       // Build messages array for the API
@@ -244,7 +277,20 @@ export default function TerminalChat({ workspaceId, isOpen, onClose, sessionId }
     } finally {
       setIsProcessing(false);
     }
-  }, [inputValue, isProcessing, messages, sessionId, selectedMode, selectedModel]);
+  }, [inputValue, isProcessing, messages, sessionId, sessionType, hostId, selectedMode, selectedModel]);
+
+  // Handle incoming error action from ErrorNotificationBar
+  useEffect(() => {
+    if (!errorAction || !isOpen || isProcessing) return;
+
+    const query = errorAction.action === 'fix'
+      ? `Fix this error: ${errorAction.errorLine}`
+      : `Explain this error: ${errorAction.errorLine}`;
+
+    sendMessage(query, errorAction);
+    onErrorActionConsumed?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorAction]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

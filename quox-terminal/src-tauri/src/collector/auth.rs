@@ -1,5 +1,4 @@
 /// Token-based authentication for the Quox Collector.
-/// TODO: Phase 5 full implementation.
 ///
 /// Authentication flow:
 /// 1. Desktop app stores collector URL + API token in secure storage
@@ -53,10 +52,37 @@ impl CollectorAuth {
         self
     }
 
-    /// Validate the token against the collector (stub).
+    /// Validate the token against the collector.
     pub async fn validate(&self) -> AuthResult {
-        // TODO: Implement token validation via HTTP request to collector
-        AuthResult::Error("Token validation not yet implemented".to_string())
+        let url = format!(
+            "{}/api/v1/health",
+            self.collector_url.trim_end_matches('/')
+        );
+
+        let client = reqwest::Client::new();
+        let mut req = client.get(&url);
+        if !self.token.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", self.token));
+        }
+
+        match req
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    AuthResult::Authenticated {
+                        user_id: "desktop".to_string(),
+                        org_id: self.org_id.clone().unwrap_or_default(),
+                        tier: "desktop".to_string(),
+                    }
+                } else {
+                    AuthResult::InvalidToken
+                }
+            }
+            Err(_) => AuthResult::Unreachable,
+        }
     }
 
     /// Store credentials in the Tauri secure store (stub).
@@ -71,10 +97,17 @@ impl CollectorAuth {
         Ok(None)
     }
 
-    /// Check if the collector is reachable (stub).
+    /// Check if the collector is reachable.
     pub async fn is_collector_available(url: &str) -> bool {
-        // TODO: Implement health check ping to collector
-        let _ = url;
-        false
+        let check_url = format!("{}/api/v1/health", url.trim_end_matches('/'));
+        match reqwest::Client::new()
+            .get(&check_url)
+            .timeout(std::time::Duration::from_secs(3))
+            .send()
+            .await
+        {
+            Ok(resp) => resp.status().is_success(),
+            Err(_) => false,
+        }
     }
 }

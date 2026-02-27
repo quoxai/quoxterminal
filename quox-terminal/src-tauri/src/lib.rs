@@ -55,6 +55,10 @@ pub fn run() {
             commands::ssh_list_keys,
             commands::ssh_session_exists,
             commands::ssh_get_output,
+            // Collector WebSocket commands
+            commands::collector_connect,
+            commands::collector_disconnect,
+            commands::collector_status,
             // Bastion / Fleet API proxy commands
             commands::bastion_list_hosts,
             commands::bastion_fleet_summary,

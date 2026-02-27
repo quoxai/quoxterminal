@@ -3483,6 +3483,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "dirs",
+ "futures-util",
  "log",
  "portable-pty",
  "regex",
