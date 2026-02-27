@@ -56,6 +56,33 @@
   gap: 12px;
 }
 
+/* Fleet toggle button */
+.terminal-view__fleet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.terminal-view__fleet-btn:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+.terminal-view__fleet-btn--active {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+.terminal-view__fleet-btn--active:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
 /* Chat toggle button */
 .terminal-view__chat-btn {
   display: flex;

@@ -138,9 +138,9 @@ export async function isCollectorAvailable(): Promise<boolean> {
   }
 
   try {
-    // TODO: Replace with actual collector health check via Tauri invoke
-    // For now, always returns false (offline mode)
-    _collectorAvailable = false;
+    const statusStr = await invoke<string>('collector_status');
+    const status = JSON.parse(statusStr);
+    _collectorAvailable = status === 'Connected';
     _lastCollectorCheck = now;
     return _collectorAvailable;
   } catch {

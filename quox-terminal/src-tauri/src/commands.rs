@@ -194,6 +194,63 @@ pub async fn chat_send(
     client::chat_send(messages, &model, &manual_api_key, &system_prompt).await
 }
 
+/// Stream a chat response from the Anthropic API via SSE.
+///
+/// Returns immediately — response tokens arrive as Tauri events:
+/// - `chat-stream-{stream_id}` for each text delta
+/// - `chat-stream-done-{stream_id}` when streaming finishes
+#[tauri::command]
+pub async fn chat_send_stream(
+    stream_id: String,
+    messages: Vec<ChatMessage>,
+    model: String,
+    system_prompt: String,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    use tauri::Manager;
+
+    let manual_api_key = {
+        let store_path = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get app data dir: {}", e))?
+            .join("quox-terminal-settings.json");
+
+        if store_path.exists() {
+            let content = std::fs::read_to_string(&store_path)
+                .map_err(|e| format!("Failed to read store: {}", e))?;
+            let parsed: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse store: {}", e))?;
+            parsed
+                .get("anthropic-api-key")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        }
+    };
+
+    // Spawn the streaming task and return immediately
+    let handle = app_handle.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::ai::streaming::chat_send_stream(
+            &stream_id,
+            messages,
+            &model,
+            &manual_api_key,
+            &system_prompt,
+            handle,
+        )
+        .await
+        {
+            log::error!("Streaming chat error: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
 /// Get current chat authentication status.
 ///
 /// Returns auth method and readiness — used by the frontend to show

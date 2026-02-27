@@ -99,9 +99,32 @@ impl CollectorWsClient {
                             msg = read.next() => {
                                 match msg {
                                     Some(Ok(Message::Text(text))) => {
-                                        // Emit as Tauri event for frontend consumption
                                         let text_str: &str = &text;
-                                        let _ = app_handle.emit("collector-message", text_str);
+                                        // Parse message type for structured event emission
+                                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(text_str) {
+                                            let msg_type = parsed.get("type")
+                                                .and_then(|t| t.as_str())
+                                                .unwrap_or("unknown");
+                                            match msg_type {
+                                                "init" => {
+                                                    let _ = app_handle.emit("collector-fleet-init", text_str);
+                                                }
+                                                "agent_joined" | "agent_added" | "heartbeat" => {
+                                                    let _ = app_handle.emit("collector-agent-update", text_str);
+                                                }
+                                                "agent_removed" => {
+                                                    let _ = app_handle.emit("collector-agent-removed", text_str);
+                                                }
+                                                "error" => {
+                                                    let _ = app_handle.emit("collector-error", text_str);
+                                                }
+                                                _ => {
+                                                    let _ = app_handle.emit("collector-message", text_str);
+                                                }
+                                            }
+                                        } else {
+                                            let _ = app_handle.emit("collector-message", text_str);
+                                        }
                                     }
                                     Some(Ok(Message::Close(_))) | None => {
                                         let _ = state.send(ConnectionState::Disconnected);

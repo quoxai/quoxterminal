@@ -22,6 +22,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, type ChangeEv
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { storeGet, storeSet } from '../../lib/store';
 import { TERMINAL_MODES, DEFAULT_MODE, type ModeId } from '../../config/terminalModes';
 import { buildTerminalContext } from '../../services/terminalContextBuilder';
@@ -251,29 +252,90 @@ export default function TerminalChat({
         .concat(userMsg)
         .map(m => ({ role: m.role, content: m.text }));
 
-      // Call Rust backend via Tauri
-      const response = await invoke<string>('chat_send', {
+      // Generate a unique stream ID for this request
+      const streamId = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+      // Create a placeholder assistant message for streaming into
+      const assistantMsgId = nextId();
+      setMessages(prev => [...prev, {
+        id: assistantMsgId,
+        role: 'assistant' as const,
+        text: '',
+        pending: true,
+      }]);
+
+      // Listen for streaming deltas
+      let accumulated = '';
+      const unlistenDelta = await listen<{ text: string }>(
+        `chat-stream-${streamId}`,
+        (event) => {
+          accumulated += event.payload.text;
+          const current = accumulated;
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantMsgId
+                ? { ...m, text: current, pending: true }
+                : m
+            )
+          );
+        }
+      );
+
+      // Listen for stream completion
+      const donePromise = new Promise<void>((resolve, reject) => {
+        let unlistenDone: (() => void) | null = null;
+        listen<{ full_text: string; stop_reason?: string; error?: string }>(
+          `chat-stream-done-${streamId}`,
+          (event) => {
+            unlistenDelta();
+            if (unlistenDone) unlistenDone();
+            if (event.payload.error) {
+              reject(new Error(event.payload.error));
+            } else {
+              // Finalize the message with complete text
+              const finalText = event.payload.full_text || accumulated;
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantMsgId
+                    ? { ...m, text: finalText, pending: false }
+                    : m
+                )
+              );
+              resolve();
+            }
+          }
+        ).then(fn => { unlistenDone = fn; });
+      });
+
+      // Fire the streaming command (returns immediately, streaming happens via events)
+      await invoke('chat_send_stream', {
+        streamId,
         messages: apiMessages,
         model: selectedModel,
         systemPrompt: systemPrompt + '\n\n' + context,
       });
 
-      const assistantMsg: ChatMessage = {
-        id: nextId(),
-        role: 'assistant',
-        text: response,
-      };
-      setMessages(prev => [...prev, assistantMsg]);
+      // Wait for streaming to complete
+      await donePromise;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setError(errMsg);
-      // Add error as assistant message for visibility
-      setMessages(prev => [...prev, {
-        id: nextId(),
-        role: 'assistant',
-        text: `Error: ${errMsg}`,
-        pending: false,
-      }]);
+      // Update pending message or add new error message
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.pending) {
+          return prev.map(m =>
+            m.id === lastMsg.id
+              ? { ...m, text: `Error: ${errMsg}`, pending: false }
+              : m
+          );
+        }
+        return [...prev, {
+          id: nextId(),
+          role: 'assistant' as const,
+          text: `Error: ${errMsg}`,
+        }];
+      });
     } finally {
       setIsProcessing(false);
     }

@@ -47,6 +47,7 @@ pub fn run() {
             commands::fs_rename_file,
             commands::validate_command,
             commands::chat_send,
+            commands::chat_send_stream,
             commands::chat_auth_status,
             // SSH commands
             commands::ssh_connect,

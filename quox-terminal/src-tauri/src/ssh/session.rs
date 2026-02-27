@@ -16,6 +16,11 @@ use tauri::{AppHandle, Emitter};
 use crate::pty::session::OutputRingBuffer;
 use super::client::ClientHandler;
 
+/// Commands forwarded to the reader task (which owns the Channel).
+enum ReaderCommand {
+    Resize { cols: u32, rows: u32 },
+}
+
 /// Authentication method for SSH connections.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AuthMethod {
@@ -70,6 +75,8 @@ pub struct SshSession {
     handle: Option<Handle<ClientHandler>>,
     /// Channel ID for addressing the session's PTY channel.
     channel_id: Option<ChannelId>,
+    /// Sender for forwarding commands (resize) to the reader task.
+    command_tx: Option<tokio::sync::mpsc::UnboundedSender<ReaderCommand>>,
     /// Background task reading output from the remote shell.
     _reader_task: Option<tokio::task::JoinHandle<()>>,
 }
@@ -182,48 +189,57 @@ impl SshSession {
         let output_buffer = Arc::new(Mutex::new(OutputRingBuffer::new(1024 * 1024)));
         let buffer_clone = Arc::clone(&output_buffer);
 
+        // Create mpsc channel for forwarding commands (resize) to the reader task.
+        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::unbounded_channel::<ReaderCommand>();
+
         // Spawn a reader task to stream output to the frontend.
         // The Channel is moved into this task — it owns the receiving side.
         // Write operations go through Handle::data() which doesn't need Channel.
+        // Resize commands arrive via cmd_rx from SshSession::resize().
         let session_id = id.clone();
         let app = app_handle.clone();
         let reader_task = tokio::spawn(async move {
             loop {
-                match channel.wait().await {
-                    Some(ChannelMsg::Data { data }) => {
-                        let bytes = data.as_ref();
-
-                        // Write to ring buffer for AI context
-                        if let Ok(mut rb) = buffer_clone.lock() {
-                            rb.write(bytes);
-                        }
-
-                        // Emit to frontend via Tauri event
-                        let text = String::from_utf8_lossy(bytes).to_string();
-                        let event_name = format!("pty-output-{}", session_id);
-                        let _ = app.emit(&event_name, serde_json::json!({ "data": text }));
-                    }
-                    Some(ChannelMsg::ExtendedData { data, ext }) => {
-                        if ext == 1 {
-                            // stderr data — treat identically to stdout for terminal display
-                            let bytes = data.as_ref();
-                            if let Ok(mut rb) = buffer_clone.lock() {
-                                rb.write(bytes);
+                tokio::select! {
+                    msg = channel.wait() => {
+                        match msg {
+                            Some(ChannelMsg::Data { data }) => {
+                                let bytes = data.as_ref();
+                                if let Ok(mut rb) = buffer_clone.lock() {
+                                    rb.write(bytes);
+                                }
+                                let text = String::from_utf8_lossy(bytes).to_string();
+                                let event_name = format!("pty-output-{}", session_id);
+                                let _ = app.emit(&event_name, serde_json::json!({ "data": text }));
                             }
-                            let text = String::from_utf8_lossy(bytes).to_string();
-                            let event_name = format!("pty-output-{}", session_id);
-                            let _ =
-                                app.emit(&event_name, serde_json::json!({ "data": text }));
+                            Some(ChannelMsg::ExtendedData { data, ext }) => {
+                                if ext == 1 {
+                                    let bytes = data.as_ref();
+                                    if let Ok(mut rb) = buffer_clone.lock() {
+                                        rb.write(bytes);
+                                    }
+                                    let text = String::from_utf8_lossy(bytes).to_string();
+                                    let event_name = format!("pty-output-{}", session_id);
+                                    let _ = app.emit(&event_name, serde_json::json!({ "data": text }));
+                                }
+                            }
+                            Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
+                                let event_name = format!("pty-exit-{}", session_id);
+                                let _ = app.emit(&event_name, serde_json::json!({ "code": 0 }));
+                                break;
+                            }
+                            _ => {}
                         }
                     }
-                    Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) | None => {
-                        // Channel closed — notify frontend
-                        let event_name = format!("pty-exit-{}", session_id);
-                        let _ = app.emit(&event_name, serde_json::json!({ "code": 0 }));
-                        break;
-                    }
-                    _ => {
-                        // Other channel messages (window adjust, etc.) — ignore
+                    cmd = cmd_rx.recv() => {
+                        match cmd {
+                            Some(ReaderCommand::Resize { cols, rows }) => {
+                                if let Err(e) = channel.window_change(cols, rows, 0, 0).await {
+                                    log::warn!("SSH window_change failed: {:?}", e);
+                                }
+                            }
+                            None => break, // SshSession dropped the sender
+                        }
                     }
                 }
             }
@@ -251,6 +267,7 @@ impl SshSession {
             output_buffer,
             handle: Some(handle),
             channel_id: Some(channel_id),
+            command_tx: Some(cmd_tx),
             _reader_task: Some(reader_task),
         })
     }
@@ -270,15 +287,18 @@ impl SshSession {
 
     /// Resize the remote PTY.
     ///
-    /// NOTE: window_change is a Channel method in russh, but the Channel
-    /// is owned by the reader task. For now this is a no-op.
-    /// TODO: Implement via mpsc channel to the reader task.
-    pub async fn resize(&self, _cols: u16, _rows: u16) -> Result<(), String> {
-        // The Channel owns window_change() in russh, but it's moved to the reader task.
-        // This requires an mpsc channel to the reader task to forward resize requests.
-        // For now, the initial PTY size from connect() is used.
-        log::debug!("SSH resize requested but not yet implemented (channel owned by reader)");
-        Ok(())
+    /// Sends a resize command to the reader task via mpsc channel.
+    /// The reader task owns the Channel and calls window_change().
+    pub async fn resize(&self, cols: u16, rows: u16) -> Result<(), String> {
+        if let Some(tx) = &self.command_tx {
+            tx.send(ReaderCommand::Resize {
+                cols: cols as u32,
+                rows: rows as u32,
+            })
+            .map_err(|e| format!("Failed to send resize command: {}", e))
+        } else {
+            Err("SSH session is not connected".to_string())
+        }
     }
 
     /// Read the last N characters from the output ring buffer.
@@ -294,6 +314,7 @@ impl SshSession {
 
     /// Disconnect the SSH session gracefully.
     pub async fn disconnect(&mut self) -> Result<(), String> {
+        self.command_tx = None; // Signal reader task to stop
         if let Some(handle) = self.handle.take() {
             let _ = handle
                 .disconnect(Disconnect::ByApplication, "User disconnected", "en")

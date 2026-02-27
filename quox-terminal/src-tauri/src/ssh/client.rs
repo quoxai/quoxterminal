@@ -11,11 +11,27 @@ use russh::client;
 use russh_keys::key::PublicKey;
 use std::sync::Arc;
 
+use super::known_hosts;
+
 /// Handler for SSH client callbacks.
 ///
 /// Implements the russh client::Handler trait to process server events
-/// such as host key verification.
-pub struct ClientHandler;
+/// such as host key verification. Stores target host/port for known_hosts lookup.
+pub struct ClientHandler {
+    /// Target host for known_hosts lookup.
+    host: String,
+    /// Target port for known_hosts lookup.
+    port: u16,
+}
+
+impl ClientHandler {
+    pub fn new(host: &str, port: u16) -> Self {
+        Self {
+            host: host.to_string(),
+            port,
+        }
+    }
+}
 
 #[async_trait]
 impl client::Handler for ClientHandler {
@@ -23,13 +39,59 @@ impl client::Handler for ClientHandler {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &PublicKey,
+        server_public_key: &PublicKey,
     ) -> Result<bool, Self::Error> {
-        // TODO: Integrate with known_hosts.rs for proper host key verification.
-        // For now, accept all keys (equivalent to StrictHostKeyChecking=accept-new).
-        // This is acceptable for Phase 1 but must be hardened before production use.
-        log::warn!("SSH host key verification is not yet implemented — accepting all keys");
-        Ok(true)
+        // Determine key type string
+        let key_type = match server_public_key {
+            PublicKey::Ed25519(_) => "ssh-ed25519",
+            _ => "ssh-rsa",
+        };
+
+        // Encode the public key to wire-format bytes for known_hosts comparison.
+        let mut key_bytes = Vec::new();
+        let type_bytes = key_type.as_bytes();
+        key_bytes.extend_from_slice(&(type_bytes.len() as u32).to_be_bytes());
+        key_bytes.extend_from_slice(type_bytes);
+        match server_public_key {
+            PublicKey::Ed25519(key) => {
+                let raw = key.as_bytes();
+                key_bytes.extend_from_slice(&(raw.len() as u32).to_be_bytes());
+                key_bytes.extend_from_slice(raw);
+            }
+            _ => {
+                // For non-Ed25519 key types, accept with TOFU warning
+                log::warn!("SSH host key type {} — cannot verify, accepting (TOFU)", key_type);
+                return Ok(true);
+            }
+        }
+
+        match known_hosts::check_host_key(&self.host, self.port, key_type, &key_bytes) {
+            Ok(known_hosts::HostKeyStatus::Trusted) => {
+                log::info!("SSH host key verified for {}:{}", self.host, self.port);
+                Ok(true)
+            }
+            Ok(known_hosts::HostKeyStatus::Unknown) => {
+                log::info!(
+                    "SSH host key unknown for {}:{} — accepting and saving (TOFU)",
+                    self.host, self.port
+                );
+                if let Err(e) = known_hosts::add_host_key(&self.host, self.port, key_type, &key_bytes) {
+                    log::warn!("Failed to save host key: {}", e);
+                }
+                Ok(true)
+            }
+            Ok(known_hosts::HostKeyStatus::Changed) => {
+                log::error!(
+                    "SSH HOST KEY CHANGED for {}:{}! Possible MITM attack. Connection rejected.",
+                    self.host, self.port
+                );
+                Ok(false)
+            }
+            Err(e) => {
+                log::warn!("Failed to check known_hosts: {} — accepting", e);
+                Ok(true)
+            }
+        }
     }
 }
 
@@ -67,7 +129,7 @@ impl SshClient {
         key: &russh_keys::key::KeyPair,
     ) -> Result<client::Handle<ClientHandler>, String> {
         let addr = format!("{}:{}", host, port);
-        let handler = ClientHandler;
+        let handler = ClientHandler::new(host, port);
 
         let mut handle = client::connect(self.config.clone(), &*addr, handler)
             .await
@@ -97,7 +159,7 @@ impl SshClient {
         password: &str,
     ) -> Result<client::Handle<ClientHandler>, String> {
         let addr = format!("{}:{}", host, port);
-        let handler = ClientHandler;
+        let handler = ClientHandler::new(host, port);
 
         let mut handle = client::connect(self.config.clone(), &*addr, handler)
             .await
@@ -150,7 +212,7 @@ impl SshClient {
             .map_err(|e| format!("Failed to open tunnel through bastion: {}", e))?;
 
         // Step 3: Establish SSH session over the tunneled channel
-        let handler = ClientHandler;
+        let handler = ClientHandler::new(target_host, target_port);
         let mut target_handle =
             client::connect_stream(self.config.clone(), channel.into_stream(), handler)
                 .await

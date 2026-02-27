@@ -18,6 +18,7 @@ import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
+import FleetDashboard from "../components/hosts/FleetDashboard";
 import { ptyKill } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import "./terminal-view.css";
@@ -103,6 +104,7 @@ export default function TerminalView() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [fleetOpen, setFleetOpen] = useState(false);
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -420,6 +422,20 @@ export default function TerminalView() {
             {sessionCount > 0 ? "Active" : "Idle"}
           </div>
 
+          {/* Fleet Dashboard toggle */}
+          <button
+            className={`terminal-view__fleet-btn ${fleetOpen ? "terminal-view__fleet-btn--active" : ""}`}
+            onClick={() => setFleetOpen((prev) => !prev)}
+            title="Fleet Dashboard"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" />
+              <rect x="2" y="14" width="20" height="8" rx="2" />
+              <circle cx="6" cy="6" r="1" fill="currentColor" />
+              <circle cx="6" cy="18" r="1" fill="currentColor" />
+            </svg>
+          </button>
+
           {/* AI Chat toggle */}
           <button
             className={`terminal-view__chat-btn ${chatOpen ? "terminal-view__chat-btn--active" : ""}`}
@@ -559,7 +575,7 @@ export default function TerminalView() {
       </div>
 
       {/* Main content — terminal grid + optional chat sidebar */}
-      <div className={`terminal-view__main ${chatOpen ? "terminal-view__main--chat-open" : ""}`}>
+      <div className={`terminal-view__main ${chatOpen || fleetOpen ? "terminal-view__main--chat-open" : ""}`}>
         <div className="terminal-view__body" data-layout={layout}>
           {panes.map((pane) => (
             <TerminalPane
@@ -585,6 +601,20 @@ export default function TerminalView() {
             />
           ))}
         </div>
+
+        {/* Fleet Dashboard sidebar */}
+        {fleetOpen && (
+          <FleetDashboard
+            onClose={() => setFleetOpen(false)}
+            onConnectHost={(hostId) => {
+              // Close fleet panel and trigger SSH connection to this host
+              setFleetOpen(false);
+              // The HostPicker in TerminalPane handles the actual connection
+              // For now, just log — full integration would auto-connect the focused pane
+              console.log(`[Fleet] Connect to host: ${hostId}`);
+            }}
+          />
+        )}
 
         {/* AI Chat sidebar */}
         {chatOpen && (

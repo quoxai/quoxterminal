@@ -22,7 +22,7 @@ portable-pty = "0.8"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }
 dirs = "6"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
 regex = "1"
 log = "0.4"
 async-trait = "0.1"

@@ -85,16 +85,88 @@ impl CollectorAuth {
         }
     }
 
-    /// Store credentials in the Tauri secure store (stub).
-    pub async fn save_to_store(&self) -> Result<(), String> {
-        // TODO: Use tauri-plugin-store to persist credentials securely
-        Err("Credential storage not yet implemented".to_string())
+    /// Store credentials in the Tauri store settings file.
+    pub async fn save_to_store(&self, app_handle: &tauri::AppHandle) -> Result<(), String> {
+        use tauri::Manager;
+
+        let store_path = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get app data dir: {}", e))?
+            .join("quox-terminal-settings.json");
+
+        let mut root: serde_json::Value = if store_path.exists() {
+            let content = std::fs::read_to_string(&store_path)
+                .map_err(|e| format!("Failed to read store: {}", e))?;
+            serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
+        } else {
+            serde_json::json!({})
+        };
+
+        let config = serde_json::json!({
+            "collectorUrl": self.collector_url,
+            "collectorToken": self.token,
+            "orgId": self.org_id,
+        });
+        root["quox-connection-config"] = config;
+
+        let serialized = serde_json::to_string_pretty(&root)
+            .map_err(|e| format!("Failed to serialize store: {}", e))?;
+
+        if let Some(parent) = store_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create store dir: {}", e))?;
+        }
+
+        std::fs::write(&store_path, serialized)
+            .map_err(|e| format!("Failed to write store: {}", e))?;
+
+        Ok(())
     }
 
-    /// Load credentials from the Tauri secure store (stub).
-    pub async fn load_from_store() -> Result<Option<Self>, String> {
-        // TODO: Use tauri-plugin-store to load stored credentials
-        Ok(None)
+    /// Load credentials from the Tauri store settings file.
+    pub async fn load_from_store(app_handle: &tauri::AppHandle) -> Result<Option<Self>, String> {
+        use tauri::Manager;
+
+        let store_path = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get app data dir: {}", e))?
+            .join("quox-terminal-settings.json");
+
+        if !store_path.exists() {
+            return Ok(None);
+        }
+
+        let content = std::fs::read_to_string(&store_path)
+            .map_err(|e| format!("Failed to read store: {}", e))?;
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse store: {}", e))?;
+
+        let config = match parsed.get("quox-connection-config") {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+
+        let url = config
+            .get("collectorUrl")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let token = config
+            .get("collectorToken")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if url.is_empty() {
+            return Ok(None);
+        }
+
+        let mut auth = Self::new(url, token);
+        if let Some(org) = config.get("orgId").and_then(|v| v.as_str()) {
+            auth.org_id = Some(org.to_string());
+        }
+
+        Ok(Some(auth))
     }
 
     /// Check if the collector is reachable.
