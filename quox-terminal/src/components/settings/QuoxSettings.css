@@ -84,12 +84,15 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .quox-settings__close:hover {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.6);
+}
+.quox-settings__close:active {
+  transform: scale(0.9);
 }
 
 /* ═══ Layout: sidebar + content ═══ */
@@ -202,7 +205,7 @@
 
 .quox-settings__hint {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45);
   line-height: 1.5;
   margin-bottom: 14px;
 }
@@ -241,7 +244,7 @@
 
 .quox-settings__card-hint {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .quox-settings__card-status {
@@ -338,7 +341,7 @@
 
 .quox-settings__field input::placeholder,
 .quox-settings__card-body input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* Input row with test button */
@@ -382,13 +385,13 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.35);
   cursor: pointer;
   transition: color 0.15s;
 }
 
 .quox-settings__eye-btn:hover {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* API key validation status */
@@ -440,6 +443,9 @@
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.2);
 }
+.quox-settings__test-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
 
 .quox-settings__test-btn:disabled {
   opacity: 0.4;
@@ -482,6 +488,9 @@
   background: rgba(167, 139, 250, 0.14);
   border-color: rgba(167, 139, 250, 0.3);
 }
+.quox-settings__terminal-btn:active {
+  transform: scale(0.97);
+}
 
 .quox-settings__terminal-container {
   height: 340px;
@@ -494,7 +503,7 @@
 .quox-settings__terminal-hint {
   display: block;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.4);
   line-height: 1.4;
 }
 
@@ -515,6 +524,9 @@
 
 .quox-settings__save-btn:hover {
   background: rgba(56, 189, 248, 0.2);
+}
+.quox-settings__save-btn:active {
+  transform: scale(0.95);
 }
 
 .quox-settings__save-btn--saved {

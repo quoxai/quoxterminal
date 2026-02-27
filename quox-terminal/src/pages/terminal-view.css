@@ -68,11 +68,14 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 .terminal-view__fleet-btn:hover {
   background: rgba(56, 189, 248, 0.1);
   color: #38bdf8;
+}
+.terminal-view__fleet-btn:active {
+  transform: scale(0.92);
 }
 .terminal-view__fleet-btn--active {
   background: rgba(56, 189, 248, 0.15);
@@ -95,12 +98,15 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .terminal-view__chat-btn:hover {
   background: rgba(167, 139, 250, 0.1);
   color: #a78bfa;
+}
+.terminal-view__chat-btn:active {
+  transform: scale(0.92);
 }
 
 .terminal-view__chat-btn--active {
@@ -124,12 +130,15 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .terminal-view__settings-btn:hover {
   background: rgba(56, 189, 248, 0.08);
   color: #38bdf8;
+}
+.terminal-view__settings-btn:active {
+  transform: scale(0.92);
 }
 
 .terminal-view__status {
@@ -262,14 +271,17 @@
   border: none;
   border-radius: 3px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 
 .terminal-view__layout-btn:hover {
   background: rgba(56, 189, 248, 0.1);
   color: rgba(255, 255, 255, 0.6);
+}
+.terminal-view__layout-btn:active {
+  transform: scale(0.9);
 }
 
 .terminal-view__layout-btn:focus-visible {
@@ -298,7 +310,7 @@
 /* Session counter */
 .terminal-view__sessions {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   letter-spacing: 0.03em;
   padding: 3px 8px;
@@ -342,7 +354,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45);
   font-size: 11px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   letter-spacing: 0.02em;
@@ -412,15 +424,18 @@
   border: none;
   border-radius: 3px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
   flex-shrink: 0;
 }
 
 .terminal-view__tab-close:hover {
   background: rgba(255, 48, 48, 0.15);
   color: #ff6060;
+}
+.terminal-view__tab-close:active {
+  transform: scale(0.85);
 }
 
 .terminal-view__tab-close svg {
@@ -439,9 +454,9 @@
   border: 1px dashed rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   flex-shrink: 0;
   margin-left: 4px;
 }
@@ -450,6 +465,9 @@
   background: rgba(56, 189, 248, 0.08);
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.2);
+}
+.terminal-view__tab-add:active {
+  transform: scale(0.9);
 }
 
 .terminal-view__tab-add svg {

@@ -34,6 +34,9 @@
   background: rgba(16, 185, 129, 0.25);
   border-color: rgba(16, 185, 129, 0.5);
 }
+.session-restore-banner__btn--restore:active {
+  transform: scale(0.95);
+}
 
 .session-restore-banner__btn--dismiss {
   padding: 4px 8px;
@@ -49,4 +52,7 @@
 .session-restore-banner__btn--dismiss:hover {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
+}
+.session-restore-banner__btn--dismiss:active {
+  transform: scale(0.95);
 }

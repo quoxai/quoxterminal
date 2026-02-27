@@ -35,6 +35,9 @@
 .host-knowledge-card__close:hover {
   color: rgba(255, 255, 255, 0.6);
 }
+.host-knowledge-card__close:active {
+  transform: scale(0.85);
+}
 
 .host-knowledge-card__stats {
   display: flex;

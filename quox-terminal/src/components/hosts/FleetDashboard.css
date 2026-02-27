@@ -52,10 +52,14 @@
   border-radius: 4px;
   font-size: 14px;
   line-height: 1;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 .fleet-dashboard__close-btn:hover {
   color: rgba(255, 255, 255, 0.8);
   background: rgba(255, 255, 255, 0.06);
+}
+.fleet-dashboard__close-btn:active {
+  transform: scale(0.9);
 }
 
 /* ═══ Summary Bar ═══ */
@@ -138,6 +142,9 @@
 .fleet-dashboard__agent:hover {
   background: rgba(56, 189, 248, 0.06);
 }
+.fleet-dashboard__agent:active {
+  background: rgba(56, 189, 248, 0.1);
+}
 
 .fleet-dashboard__agent-dot {
   width: 8px;
@@ -166,7 +173,7 @@
 
 .fleet-dashboard__agent-detail {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45);
   margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
