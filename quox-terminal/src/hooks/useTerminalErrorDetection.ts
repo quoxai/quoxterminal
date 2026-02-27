@@ -49,6 +49,7 @@ export interface UseTerminalErrorDetectionResult {
 export function useTerminalErrorDetection(
   sessionId: string | null,
   mode: string,
+  hostId?: string | null,
 ): UseTerminalErrorDetectionResult {
   const [detectedError, setDetectedError] = useState<DetectedError | null>(null);
 
@@ -111,7 +112,7 @@ export function useTerminalErrorDetection(
       // Record detected error in memory bridge
       recordDetectedError(
         { errorType: error.errorType, errorLine: error.errorLine },
-        null,
+        hostId ?? null,
       ).catch(() => {});
 
       // Check suppression by error type

@@ -4,19 +4,18 @@
  * Connects terminal sessions to the memory system:
  * - Extracts entities (hosts, IPs, services) from terminal output
  * - Tracks session lifecycle (connect/disconnect)
- * - Records error->resolution pairs as learned items (premium)
- * - Records command executions as decisions (premium)
- * - Updates WSM focus on workspace/tab changes (premium)
+ * - Records error->resolution pairs
+ * - Records command executions
+ * - Updates workspace focus
  *
- * Desktop port: replaces getMemoryManager() calls with Tauri invoke
- * to the collector API (stubs for now). All memory ops wrapped with
- * offline detection via isCollectorAvailable() check.
+ * Local-first: all memory operations use the Tauri store via localMemoryStore.
+ * No collector/Rust backend dependency. Entity extraction runs in pure TypeScript.
  *
  * Pattern: follows fileMemoryBridge.js -- pure service, no React.
- * Premium features require the Advanced Memory Plugin ($99 one-time).
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { extractEntities } from '../utils/entityExtractor';
+import * as localStore from './localMemoryStore';
 
 // ============================================================================
 // TYPES
@@ -120,96 +119,42 @@ function emit(type: string, detail: Record<string, unknown>, isPremium = false):
 }
 
 // ============================================================================
-// COLLECTOR AVAILABILITY
+// AVAILABILITY (local-first — always available)
 // ============================================================================
 
-let _collectorAvailable: boolean | null = null;
-let _lastCollectorCheck = 0;
-const COLLECTOR_CHECK_INTERVAL = 30_000; // 30 seconds
-
 /**
- * Check if the Quox Collector is reachable.
- * Caches the result for 30 seconds to avoid excessive pinging.
+ * Check if memory storage is available.
+ * Local-first: always returns true (no external dependency).
  */
 export async function isCollectorAvailable(): Promise<boolean> {
-  const now = Date.now();
-  if (_collectorAvailable !== null && now - _lastCollectorCheck < COLLECTOR_CHECK_INTERVAL) {
-    return _collectorAvailable;
-  }
-
-  try {
-    const statusStr = await invoke<string>('collector_status');
-    const status = JSON.parse(statusStr);
-    _collectorAvailable = status === 'Connected';
-    _lastCollectorCheck = now;
-    return _collectorAvailable;
-  } catch {
-    _collectorAvailable = false;
-    _lastCollectorCheck = now;
-    return false;
-  }
+  return true;
 }
 
 /**
- * Reset the collector availability cache (e.g., on settings change).
+ * Reset the collector availability cache (no-op for local-first).
  */
 export function resetCollectorCache(): void {
-  _collectorAvailable = null;
-  _lastCollectorCheck = 0;
+  // No-op — local store is always available
 }
 
 // ============================================================================
-// TIER GATING
+// TIER GATING (local-first — all features available)
 // ============================================================================
-
-let _premiumCached: boolean | null = null;
 
 /**
  * Check if premium terminal memory features are available.
- * Premium requires the Advanced Memory plugin.
+ * Local-first: all features work on desktop without a collector.
  */
 export async function isPremiumTerminalMemory(): Promise<boolean> {
-  try {
-    if (!(await isCollectorAvailable())) return false;
-    // TODO: Check plugin status via collector API
-    return false;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 /**
- * Synchronous check using cached premium status.
- * Falls back to false if not yet checked.
- */
-function hasPremiumSync(): boolean {
-  return _premiumCached ?? false;
-}
-
-/**
- * Update the cached premium status.
+ * Update the cached premium status (no-op for local-first).
  */
 export async function refreshPremiumStatus(): Promise<void> {
-  _premiumCached = await isPremiumTerminalMemory();
+  // No-op — always premium on desktop
 }
-
-/**
- * Create an upgrade prompt for gated features.
- */
-function createUpgradePrompt(feature: string): UpgradePrompt {
-  return {
-    feature,
-    message: 'Unlock advanced terminal memory with the Advanced Memory Plugin.',
-    tier: 'premium',
-  };
-}
-
-// ============================================================================
-// LOCAL STORAGE KEY
-// ============================================================================
-
-const SESSIONS_KEY = 'quox_terminal_sessions';
-const MAX_ERROR_LINE = 200;
 
 // ============================================================================
 // SESSION LIFECYCLE
@@ -217,8 +162,7 @@ const MAX_ERROR_LINE = 200;
 
 /**
  * Track a terminal session start.
- * Free: stores session entity, touches host entity.
- * Premium: also sets WSM current focus.
+ * Stores session record, entity, and touches host entity.
  */
 export async function trackSessionStart(
   hostId: string | null,
@@ -229,40 +173,25 @@ export async function trackSessionStart(
     const host = hostId || 'local';
     const now = new Date().toISOString();
 
-    // Store locally (always works, even offline)
-    _trackSessionLocally(sessionId, host, mode);
+    // Store session in local store
+    await localStore.addSession(sessionId, host, mode);
 
-    // Attempt to store in collector if available
-    if (await isCollectorAvailable()) {
-      try {
-        await invoke('collector_store_entity', {
-          entityType: 'terminal_session',
-          name: sessionId,
-          attributes: { hostId: host, mode, connectedAt: now, status: 'active' },
-        });
+    // Store host entity
+    await localStore.storeEntity('host', host, {
+      lastTerminalSession: now,
+      mode,
+    });
 
-        await invoke('collector_touch_entity', {
-          entityType: 'host',
-          id: host,
-          name: host,
-          context: { lastTerminalSession: now },
-        });
-      } catch {
-        // Collector unavailable -- continue with local-only tracking
-      }
+    // Touch host in recent entities
+    await localStore.touchEntity('host', `host:${host}`, {
+      lastTerminalSession: now,
+    });
 
-      // Premium: set WSM focus
-      if (hasPremiumSync()) {
-        try {
-          await invoke('collector_set_focus', {
-            task: `Terminal on ${host}`,
-            goal: `${mode === 'ssh' ? 'SSH' : 'Local'} session active`,
-          });
-        } catch {
-          // Non-critical
-        }
-      }
-    }
+    // Set focus
+    await localStore.setFocus(
+      `Terminal on ${host}`,
+      `${mode === 'ssh' ? 'SSH' : 'Local'} session active`,
+    );
 
     emit(EVENT_TYPES.SESSION_START, { hostId: host, mode });
     console.log(`[TerminalMemoryBridge] Session started: ${sessionId} on ${host}`);
@@ -273,26 +202,11 @@ export async function trackSessionStart(
 
 /**
  * Track a terminal session end.
- * Updates session entity status to 'disconnected'.
+ * Updates session record status to 'disconnected'.
  */
 export async function trackSessionEnd(sessionId: string): Promise<void> {
   try {
-    _updateSessionLocally(sessionId, 'disconnected');
-
-    if (await isCollectorAvailable()) {
-      try {
-        await invoke('collector_store_entity', {
-          entityType: 'terminal_session',
-          name: sessionId,
-          attributes: {
-            status: 'disconnected',
-            disconnectedAt: new Date().toISOString(),
-          },
-        });
-      } catch {
-        // Collector unavailable
-      }
-    }
+    await localStore.endSession(sessionId);
 
     emit(EVENT_TYPES.SESSION_END, { sessionId });
     console.log(`[TerminalMemoryBridge] Session ended: ${sessionId}`);
@@ -307,7 +221,7 @@ export async function trackSessionEnd(sessionId: string): Promise<void> {
 
 /**
  * Extract entities (hosts, IPs, services, containers, ports) from terminal output.
- * Stores each entity and touches it in WSM.
+ * Stores each entity and touches it in recent-entities list.
  */
 export async function extractEntitiesFromOutput(
   cleanOutput: string
@@ -315,39 +229,36 @@ export async function extractEntitiesFromOutput(
   if (!cleanOutput || cleanOutput.length < 5) return [];
 
   try {
-    if (!(await isCollectorAvailable())) return [];
+    const extracted = extractEntities(cleanOutput);
 
-    try {
-      // TODO: Use collector's built-in entity extraction
-      const entities: TerminalEntity[] = await invoke('collector_extract_entities', {
-        text: cleanOutput,
-      });
+    // Store each extracted entity
+    for (const entity of extracted) {
+      const entityName = entity.value || entity.name || '';
+      if (!entityName) continue;
 
-      // Store each extracted entity
-      for (const entity of entities) {
-        try {
-          await invoke('collector_store_entity', {
-            entityType: entity.type,
-            name: entity.value || entity.name,
-            attributes: {
-              source: 'terminal',
-              detectedAt: new Date().toISOString(),
-            },
-          });
+      try {
+        await localStore.storeEntity(entity.type, entityName, {
+          source: 'terminal',
+          detectedAt: new Date().toISOString(),
+        });
 
-          emit(EVENT_TYPES.ENTITY_STORED, {
-            type: entity.type,
-            name: entity.value || entity.name || '',
-          });
-        } catch {
-          // Individual entity storage failure -- continue
-        }
+        await localStore.touchEntity(entity.type, `${entity.type}:${entityName}`);
+
+        emit(EVENT_TYPES.ENTITY_STORED, {
+          type: entity.type,
+          name: entityName,
+        });
+      } catch {
+        // Individual entity storage failure -- continue
       }
-
-      return entities;
-    } catch {
-      return [];
     }
+
+    // Convert to TerminalEntity format
+    return extracted.map((e) => ({
+      type: e.type,
+      name: e.name,
+      value: e.value,
+    }));
   } catch (err) {
     console.warn('[TerminalMemoryBridge] Entity extraction failed:', err);
     return [];
@@ -358,10 +269,10 @@ export async function extractEntitiesFromOutput(
 // ERROR TRACKING
 // ============================================================================
 
+const MAX_ERROR_LINE = 200;
+
 /**
  * Record a detected terminal error in memory.
- * Free: stores error entity.
- * Premium: also creates an open loop.
  */
 export async function recordDetectedError(
   error: TerminalError,
@@ -373,33 +284,7 @@ export async function recordDetectedError(
     const host = hostId || 'local';
     const truncatedLine = (error.errorLine || '').slice(0, MAX_ERROR_LINE);
 
-    if (await isCollectorAvailable()) {
-      try {
-        // Store error entity (free)
-        await invoke('collector_store_entity', {
-          entityType: 'error',
-          name: `${error.errorType}_${Date.now()}`,
-          attributes: {
-            errorType: error.errorType,
-            errorLine: truncatedLine,
-            hostId: host,
-            source: 'terminal',
-            detectedAt: new Date().toISOString(),
-          },
-        });
-
-        // Premium: create an open loop for unresolved errors
-        if (hasPremiumSync()) {
-          await invoke('collector_add_open_loop', {
-            loopType: 'task',
-            description: `${error.errorType} on ${host}: ${truncatedLine}`,
-            priority: 'medium',
-          });
-        }
-      } catch {
-        // Collector unavailable
-      }
-    }
+    await localStore.addError(error.errorType, truncatedLine, host);
 
     emit(EVENT_TYPES.ERROR_TRACKED, { errorType: error.errorType, hostId: host });
     console.log(`[TerminalMemoryBridge] Error recorded: ${error.errorType}`);
@@ -410,8 +295,6 @@ export async function recordDetectedError(
 
 /**
  * Record an error resolution (error + AI explanation).
- * Premium only: stores as a learned item of type 'error'.
- * Free: returns upgrade prompt.
  */
 export async function recordErrorResolution(
   error: TerminalError,
@@ -420,37 +303,15 @@ export async function recordErrorResolution(
 ): Promise<ErrorResolutionResult> {
   if (!error || !aiResponse) return { stored: false };
 
-  // Premium only
-  if (!hasPremiumSync()) {
-    emit(EVENT_TYPES.UPGRADE_BLOCKED, { feature: 'resolution' });
-    return {
-      stored: false,
-      blocked: true,
-      upgrade: createUpgradePrompt('terminalMemory'),
-    };
-  }
-
   try {
-    if (!(await isCollectorAvailable())) return { stored: false };
-
     const host = hostId || 'local';
-    const truncatedLine = (error.errorLine || '').slice(0, MAX_ERROR_LINE);
     const truncatedResponse = aiResponse.slice(0, 500);
 
-    try {
-      await invoke('collector_add_learned_item', {
-        itemType: 'error',
-        content: `Error ${error.errorType}: ${truncatedLine} -- Resolution: ${truncatedResponse}`,
-        tags: ['terminal', host, error.errorType],
-        source: 'terminal-memory-bridge',
-      });
+    await localStore.addResolution(error.errorType, truncatedResponse, host);
 
-      emit(EVENT_TYPES.RESOLUTION_STORED, { errorType: error.errorType }, true);
-      console.log(`[TerminalMemoryBridge] Error resolution stored: ${error.errorType}`);
-      return { stored: true };
-    } catch {
-      return { stored: false };
-    }
+    emit(EVENT_TYPES.RESOLUTION_STORED, { errorType: error.errorType });
+    console.log(`[TerminalMemoryBridge] Error resolution stored: ${error.errorType}`);
+    return { stored: true };
   } catch (err) {
     console.warn('[TerminalMemoryBridge] Failed to record error resolution:', err);
     return { stored: false };
@@ -462,28 +323,18 @@ export async function recordErrorResolution(
 // ============================================================================
 
 /**
- * Record a command execution as a decision.
- * Premium only (uses WSM recordDecision).
+ * Record a command execution.
  */
 export async function recordCommandExecution(
   command: string,
   hostId: string | null
 ): Promise<void> {
-  if (!command || !hasPremiumSync()) return;
+  if (!command) return;
 
   try {
-    if (!(await isCollectorAvailable())) return;
+    await localStore.addCommand(command, hostId);
 
-    await invoke('collector_record_decision', {
-      decision: `Executed: ${command.slice(0, 200)}`,
-      context: {
-        hostId: hostId || 'local',
-        source: 'terminal',
-        executedAt: new Date().toISOString(),
-      },
-    });
-
-    emit(EVENT_TYPES.COMMAND_RECORDED, { command: command.slice(0, 80) }, true);
+    emit(EVENT_TYPES.COMMAND_RECORDED, { command: command.slice(0, 80) });
   } catch (err) {
     console.warn('[TerminalMemoryBridge] Failed to record command:', err);
   }
@@ -494,24 +345,19 @@ export async function recordCommandExecution(
 // ============================================================================
 
 /**
- * Update WSM focus when terminal workspace/tab changes.
- * Premium only.
+ * Update workspace focus when terminal workspace/tab changes.
  */
 export async function updateTerminalFocus(
   workspaceName: string,
   hostId: string | null
 ): Promise<void> {
-  if (!hasPremiumSync()) return;
-
   try {
-    if (!(await isCollectorAvailable())) return;
+    await localStore.setFocus(
+      `Workspace: ${workspaceName}`,
+      `Working on ${hostId || 'local'}`,
+    );
 
-    await invoke('collector_set_focus', {
-      task: `Workspace: ${workspaceName}`,
-      goal: `Working on ${hostId || 'local'}`,
-    });
-
-    emit(EVENT_TYPES.FOCUS_UPDATED, { workspace: workspaceName }, true);
+    emit(EVENT_TYPES.FOCUS_UPDATED, { workspace: workspaceName });
   } catch (err) {
     console.warn('[TerminalMemoryBridge] Failed to update focus:', err);
   }
@@ -522,12 +368,11 @@ export async function updateTerminalFocus(
 // ============================================================================
 
 /**
- * Get terminal session metrics from local tracking.
- * Works for all tiers (no collector needed).
+ * Get terminal session metrics from local store.
  */
-export function getTerminalMetrics(): TerminalMetrics {
+export async function getTerminalMetrics(): Promise<TerminalMetrics> {
   try {
-    const sessions = _getLocalSessions();
+    const sessions = await localStore.getSessions();
     const active = sessions.filter((s) => s.status === 'active');
     const hosts = new Set(sessions.map((s) => s.hostId));
 
@@ -538,51 +383,6 @@ export function getTerminalMetrics(): TerminalMetrics {
     };
   } catch {
     return { totalSessions: 0, activeSessions: 0, uniqueHosts: 0 };
-  }
-}
-
-// ============================================================================
-// PRIVATE: LOCAL SESSION TRACKING
-// ============================================================================
-
-function _trackSessionLocally(sessionId: string, hostId: string, mode: string): void {
-  try {
-    const sessions = _getLocalSessions();
-    sessions.push({
-      sessionId,
-      hostId,
-      mode: mode as 'local' | 'ssh',
-      status: 'active',
-      connectedAt: new Date().toISOString(),
-    });
-    // Keep only last 50 sessions
-    const trimmed = sessions.slice(-50);
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(trimmed));
-  } catch {
-    // localStorage may be unavailable
-  }
-}
-
-function _updateSessionLocally(sessionId: string, status: 'active' | 'disconnected'): void {
-  try {
-    const sessions = _getLocalSessions();
-    const session = sessions.find((s) => s.sessionId === sessionId);
-    if (session) {
-      session.status = status;
-      session.disconnectedAt = new Date().toISOString();
-      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-    }
-  } catch {
-    // localStorage may be unavailable
-  }
-}
-
-function _getLocalSessions(): SessionInfo[] {
-  try {
-    const raw = localStorage.getItem(SESSIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
   }
 }
 

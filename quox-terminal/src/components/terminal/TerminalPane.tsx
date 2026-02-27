@@ -10,7 +10,7 @@
  * fallback opens the full SSH connection dialog.
  */
 
-import { useCallback, useRef, useState, useMemo } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
 import HostKnowledgeCard from "./HostKnowledgeCard";
@@ -24,6 +24,7 @@ import useVimMode from "../../hooks/useVimMode";
 import { useTerminalErrorDetection } from "../../hooks/useTerminalErrorDetection";
 import { sshConnect, sshDisconnect } from "../../lib/tauri-ssh";
 import { storeGet } from "../../lib/store";
+import { getSessions, type SessionRecord } from "../../services/localMemoryStore";
 import "./TerminalPane.css";
 
 interface TerminalPaneProps {
@@ -88,7 +89,7 @@ export default function TerminalPane({
 
   // Error detection hook
   const { detectedError, dismissError, signalActivity } =
-    useTerminalErrorDetection(sessionId, "balanced");
+    useTerminalErrorDetection(sessionId, "balanced", paneHostId || null);
 
   const handleConnect = useCallback(() => {
     onConnect(paneId);
@@ -236,15 +237,11 @@ export default function TerminalPane({
   // Host Knowledge Card state
   const [knowledgeCardDismissed, setKnowledgeCardDismissed] = useState(false);
 
-  // Read local session history for the knowledge card
-  const localSessions = useMemo(() => {
-    try {
-      const raw = localStorage.getItem('quox_terminal_sessions');
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }, [paneMode, paneHostId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Read local session history for the knowledge card (async from store)
+  const [localSessions, setLocalSessions] = useState<SessionRecord[]>([]);
+  useEffect(() => {
+    getSessions().then((sessions) => setLocalSessions(sessions)).catch(() => {});
+  }, [paneMode, paneHostId]);
 
   const showKnowledgeCard = paneMode === 'ssh' && paneHostId && !knowledgeCardDismissed && localSessions.length > 0;
 
@@ -360,6 +357,7 @@ export default function TerminalPane({
           <SshTerminalEmbed
             key={`ssh-${paneId}`}
             sessionId={sessionId}
+            hostId={paneHostId || undefined}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onData={handleData}

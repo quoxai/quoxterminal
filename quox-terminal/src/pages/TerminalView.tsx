@@ -26,6 +26,7 @@ import type { FleetHost } from "../services/bastionClient";
 import { ptyKill } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import { storeGet, storeSet } from "../lib/store";
+import { migrateFromLocalStorage } from "../services/localMemoryStore";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./terminal-view.css";
 
@@ -368,6 +369,12 @@ export default function TerminalView() {
       setRenamingTabId(null);
     }
   }, [renamingTabId, renameValue, renameWorkspace]);
+
+  // ── Migrate legacy localStorage data on mount ─────────────────────────
+
+  useEffect(() => {
+    migrateFromLocalStorage().catch(() => {});
+  }, []);
 
   // ── Load previous sessions on mount (for restore banner) ──────────────
 

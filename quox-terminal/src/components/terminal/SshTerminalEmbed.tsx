@@ -32,6 +32,7 @@ interface ScrollRef {
 
 interface SshTerminalEmbedProps {
   sessionId: string;
+  hostId?: string;
   onConnect?: () => void;
   onDisconnect?: (code?: number) => void;
   onData?: (data: string) => void;
@@ -43,6 +44,7 @@ interface SshTerminalEmbedProps {
 
 export default function SshTerminalEmbed({
   sessionId,
+  hostId,
   onConnect,
   onDisconnect,
   onData,
@@ -210,7 +212,7 @@ export default function SshTerminalEmbed({
       if (onConnectRef.current) onConnectRef.current();
 
       // Track SSH session in memory bridge
-      trackSessionStart(null, sessionId, 'ssh').catch(() => {});
+      trackSessionStart(hostId ?? null, sessionId, 'ssh').catch(() => {});
     };
 
     wireSession();
