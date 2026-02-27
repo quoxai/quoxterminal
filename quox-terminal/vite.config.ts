@@ -5,6 +5,8 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(async () => ({
   plugins: [react()],
+  // Use relative paths so Tauri's custom protocol can resolve assets
+  base: "./",
   clearScreen: false,
   server: {
     port: 1420,
