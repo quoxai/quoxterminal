@@ -38,9 +38,41 @@
   white-space: nowrap;
 }
 
+.terminal-view__logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.3));
+}
+
 .terminal-view__title svg {
   color: #38bdf8;
   filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.4));
+}
+
+.terminal-view__header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.terminal-view__settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.terminal-view__settings-btn:hover {
+  background: rgba(56, 189, 248, 0.08);
+  color: #38bdf8;
 }
 
 .terminal-view__status {

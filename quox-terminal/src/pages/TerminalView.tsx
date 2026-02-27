@@ -17,6 +17,7 @@ import useTerminalWorkspace, {
 import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
+import QuoxSettings from "../components/settings/QuoxSettings";
 import { ptyKill } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import "./terminal-view.css";
@@ -100,6 +101,7 @@ export default function TerminalView() {
   } = useTerminalWorkspace();
 
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
@@ -350,19 +352,11 @@ export default function TerminalView() {
       {/* Header */}
       <div className="terminal-view__header">
         <div className="terminal-view__title">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="4 17 10 11 4 5" />
-            <line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
+          <img
+            src="/quox-logo.png"
+            alt="Quox"
+            className="terminal-view__logo"
+          />
           QuoxTerminal
         </div>
 
@@ -389,11 +383,34 @@ export default function TerminalView() {
           </span>
         </div>
 
-        <div className="terminal-view__status">
-          <span
-            className={`terminal-view__dot ${sessionCount > 0 ? "terminal-view__dot--connected" : ""}`}
-          />
-          {sessionCount > 0 ? "Active" : "Idle"}
+        <div className="terminal-view__header-right">
+          <div className="terminal-view__status">
+            <span
+              className={`terminal-view__dot ${sessionCount > 0 ? "terminal-view__dot--connected" : ""}`}
+            />
+            {sessionCount > 0 ? "Active" : "Idle"}
+          </div>
+
+          {/* Settings gear */}
+          <button
+            className="terminal-view__settings-btn"
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -617,6 +634,12 @@ export default function TerminalView() {
           </div>
         </div>
       )}
+
+      {/* Settings panel */}
+      <QuoxSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </div>
   );
 }
