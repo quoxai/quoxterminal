@@ -39,7 +39,7 @@ export interface FilePolicy {
 
 export const TERMINAL_MODES: Record<ModeId, TerminalMode> = {
   strict:   { id: 'strict',   label: 'Strict',   description: 'Safer, confirmation-heavy',          color: '#f59e0b' },
-  balanced: { id: 'balanced', label: 'Balanced',  description: 'Default, practical safeguards',      color: '#22c55e' },
+  balanced: { id: 'balanced', label: 'Balanced',  description: 'Default, practical safeguards',      color: '#38bdf8' },
   builder:  { id: 'builder',  label: 'Builder',   description: 'Fast execution, fewer interruptions', color: '#3b82f6' },
   audit:    { id: 'audit',    label: 'Audit',     description: 'Read-only diagnosis mode',           color: '#a855f7' },
 };

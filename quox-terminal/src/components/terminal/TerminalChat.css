@@ -7,7 +7,7 @@
     display: flex;
     flex-direction: column;
     background: #0d1117;
-    border-left: 1px solid rgba(34, 197, 94, 0.12);
+    border-left: 1px solid rgba(56, 189, 248, 0.12);
     overflow: hidden;
     animation: terminal-chat-slide-in 0.15s ease-out;
 }
@@ -26,7 +26,7 @@
     padding: 0 12px;
     min-height: 36px;
     background: linear-gradient(180deg, #0f1920 0%, #0d1117 100%);
-    border-bottom: 1px solid rgba(34, 197, 94, 0.08);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.08);
     flex-shrink: 0;
 }
 
@@ -34,7 +34,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: rgba(34, 197, 94, 0.8);
+    color: rgba(56, 189, 248, 0.8);
 }
 
 .terminal-chat__header-title {
@@ -143,7 +143,7 @@
 }
 
 .terminal-chat__mode-btn--active {
-    background: rgba(34, 197, 94, 0.06);
+    background: rgba(56, 189, 248, 0.06);
     font-weight: 600;
 }
 

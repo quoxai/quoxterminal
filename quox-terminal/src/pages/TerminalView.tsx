@@ -18,6 +18,7 @@ import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import { ptyKill } from "../lib/tauri-pty";
+import { sshDisconnect } from "../lib/tauri-ssh";
 import "./terminal-view.css";
 
 // ── Layout icons (SVGs for the layout picker) ──────────────────────────────
@@ -88,6 +89,7 @@ export default function TerminalView() {
     activeWorkspaceId,
     workspaceWarning,
     setLayout,
+    updatePane,
     setPaneConnected,
     setPaneSessionId,
     setFocusedPane,
@@ -133,14 +135,29 @@ export default function TerminalView() {
         if (!confirmed) return;
       }
 
-      // Kill all PTY sessions in the workspace
+      // Kill all sessions in the workspace (local PTY + SSH)
       activeSessions.forEach((p) => {
-        if (p.sessionId) ptyKill(p.sessionId).catch(() => {});
+        if (p.sessionId) {
+          if (p.mode === "ssh") {
+            sshDisconnect(p.sessionId).catch(() => {});
+          } else {
+            ptyKill(p.sessionId).catch(() => {});
+          }
+        }
       });
 
       removeWorkspace(wsId);
     },
     [workspaces, removeWorkspace],
+  );
+
+  // ── Pane mode change (local → SSH) ─────────────────────────────────────
+
+  const handlePaneModeChange = useCallback(
+    (paneId: string, mode: string, hostId: string) => {
+      updatePane(paneId, { mode, hostId });
+    },
+    [updatePane],
   );
 
   // ── Keyboard shortcut handler ──────────────────────────────────────────
@@ -232,10 +249,14 @@ export default function TerminalView() {
 
   const handlePaneClose = useCallback(
     (paneId: string) => {
-      // Find the pane being closed and kill its PTY
+      // Find the pane being closed and kill its session
       const pane = panes.find((p) => p.id === paneId);
       if (pane?.sessionId) {
-        ptyKill(pane.sessionId).catch(() => {});
+        if (pane.mode === "ssh") {
+          sshDisconnect(pane.sessionId).catch(() => {});
+        } else {
+          ptyKill(pane.sessionId).catch(() => {});
+        }
       }
 
       // Check how many other connected sessions would be lost by downgrading
@@ -282,10 +303,16 @@ export default function TerminalView() {
     if (sessionCount === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // Kill all PTY sessions across all workspaces
+      // Kill all sessions across all workspaces (local + SSH)
       workspaces.forEach((ws) => {
         ws.panes.forEach((p) => {
-          if (p.sessionId) ptyKill(p.sessionId).catch(() => {});
+          if (p.sessionId) {
+            if (p.mode === "ssh") {
+              sshDisconnect(p.sessionId).catch(() => {});
+            } else {
+              ptyKill(p.sessionId).catch(() => {});
+            }
+          }
         });
       });
     };
@@ -472,6 +499,8 @@ export default function TerminalView() {
             <TerminalPane
               key={`${activeWorkspaceId}-${pane.id}`}
               paneId={pane.id}
+              paneMode={pane.mode}
+              paneHostId={pane.hostId}
               sessionId={pane.sessionId}
               isFocused={pane.id === focusedPaneId}
               showCloseBtn={panes.length > 1}
@@ -481,6 +510,7 @@ export default function TerminalView() {
               onSessionId={handlePaneSessionId}
               onFocus={handlePaneFocus}
               onClose={handlePaneClose}
+              onModeChange={handlePaneModeChange}
               customKeyHandler={handleShortcut}
               clearRef={clearRefs.current[pane.id]}
               reconnectRef={reconnectRefs.current[pane.id]}
@@ -516,7 +546,7 @@ export default function TerminalView() {
           <div
             className="terminal-leave-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 520, borderColor: "rgba(34, 197, 94, 0.25)" }}
+            style={{ maxWidth: 520, borderColor: "rgba(56, 189, 248, 0.25)" }}
           >
             <h3
               style={{
@@ -533,7 +563,7 @@ export default function TerminalView() {
                 <div
                   style={{
                     fontSize: 11,
-                    color: "rgba(34,197,94,0.6)",
+                    color: "rgba(56,189,248,0.6)",
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",

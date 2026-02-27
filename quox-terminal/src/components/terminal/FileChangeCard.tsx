@@ -101,7 +101,7 @@ export default function FileChangeCard({
             ? '#ffb030'
             : pathValidation.severity === 'BLOCKED'
               ? '#ff4444'
-              : '#22c55e';
+              : '#38bdf8';
 
   // Fetch original file and compute diff when edit card is expanded
   useEffect(() => {

@@ -1,0 +1,42 @@
+/* Modal — Base overlay and content styling */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 20px 24px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content--info {
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+.modal-content--warning {
+  border-color: rgba(249, 175, 79, 0.25);
+}
+
+.modal-content--danger {
+  border-color: rgba(234, 108, 115, 0.25);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}

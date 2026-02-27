@@ -44,7 +44,7 @@ const SEVERITY_MODAL_MAP: Record<string, 'info' | 'warning' | 'danger'> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  GREEN: '#22c55e',
+  GREEN: '#38bdf8',
   AMBER: '#ffb030',
   RED: '#ff4444',
   BLOCKED: '#ff4444',
@@ -82,7 +82,7 @@ function SingleFileContent({
           <span
             className="file-apply-confirm__action-badge"
             style={{
-              color: action === 'edit' ? '#f59e0b' : '#22c55e',
+              color: action === 'edit' ? '#f59e0b' : '#38bdf8',
             }}
           >
             {action.toUpperCase()}
@@ -94,7 +94,7 @@ function SingleFileContent({
             className="file-apply-confirm__severity-badge"
             style={{
               color:
-                SEVERITY_COLORS[severity || validation.severity] || '#22c55e',
+                SEVERITY_COLORS[severity || validation.severity] || '#38bdf8',
             }}
           >
             {severity || validation.severity}
@@ -135,13 +135,13 @@ function BatchFileContent({ files }: { files: BatchFile[] }) {
         {files.map((f, i) => {
           const validation = validateFilePath(f.filePath);
           const sevColor =
-            SEVERITY_COLORS[f.severity || validation.severity] || '#22c55e';
+            SEVERITY_COLORS[f.severity || validation.severity] || '#38bdf8';
           return (
             <div key={i} className="file-apply-confirm__batch-item">
               <span
                 className="file-apply-confirm__batch-icon"
                 style={{
-                  color: f.action === 'edit' ? '#f59e0b' : '#22c55e',
+                  color: f.action === 'edit' ? '#f59e0b' : '#38bdf8',
                 }}
               >
                 {f.action === 'edit' ? '\u270E' : '\u271A'}
@@ -152,7 +152,7 @@ function BatchFileContent({ files }: { files: BatchFile[] }) {
               <span
                 className="file-apply-confirm__batch-action"
                 style={{
-                  color: f.action === 'edit' ? '#f59e0b' : '#22c55e',
+                  color: f.action === 'edit' ? '#f59e0b' : '#38bdf8',
                 }}
               >
                 {f.action.toUpperCase()}

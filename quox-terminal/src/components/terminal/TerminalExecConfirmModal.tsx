@@ -365,13 +365,13 @@ export default function TerminalExecConfirmModal({
               borderColor:
                 config.modalSeverity === 'danger'
                   ? 'rgba(239, 68, 68, 0.3)'
-                  : 'rgba(34, 197, 94, 0.3)',
+                  : 'rgba(56, 189, 248, 0.3)',
               background:
                 config.modalSeverity === 'danger'
                   ? 'rgba(239, 68, 68, 0.15)'
-                  : 'rgba(34, 197, 94, 0.15)',
+                  : 'rgba(56, 189, 248, 0.15)',
               color:
-                config.modalSeverity === 'danger' ? '#ef4444' : '#22c55e',
+                config.modalSeverity === 'danger' ? '#ef4444' : '#38bdf8',
               fontSize: '0.8rem',
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 600,

@@ -52,8 +52,8 @@
   height: 14px;
   padding: 0 4px;
   border-radius: 7px;
-  background: rgba(34, 197, 94, 0.15);
-  color: rgba(34, 197, 94, 0.8);
+  background: rgba(56, 189, 248, 0.15);
+  color: rgba(56, 189, 248, 0.8);
   font-size: 9px;
   font-weight: 600;
   line-height: 1;
@@ -129,7 +129,7 @@
   flex-shrink: 0;
 }
 
-.memory-feed__dot--entity  { background: #22c55e; }
+.memory-feed__dot--entity  { background: #38bdf8; }
 .memory-feed__dot--session { background: #3b82f6; }
 .memory-feed__dot--error   { background: #f87171; }
 .memory-feed__dot--premium { background: #8b5cf6; }
@@ -145,7 +145,7 @@
   min-width: 0;
 }
 
-.memory-feed__text--entity  { color: rgba(34, 197, 94, 0.7); }
+.memory-feed__text--entity  { color: rgba(56, 189, 248, 0.7); }
 .memory-feed__text--session { color: rgba(59, 130, 246, 0.7); }
 .memory-feed__text--error   { color: rgba(248, 113, 113, 0.7); }
 .memory-feed__text--premium { color: rgba(139, 92, 246, 0.7); }

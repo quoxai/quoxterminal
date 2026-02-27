@@ -1,22 +1,26 @@
 /**
  * TerminalPane — Per-pane wrapper for multi-pane terminal workspace
  *
- * Renders a compact header and wraps TerminalEmbed.
- * Each pane manages its own PTY session independently.
- *
- * Ported from quox-source — simplified for local-only mode (Phase 2).
- * SSH selectors and host knowledge will be re-enabled in Phase 5.
+ * Renders a compact header with session type indicator and wraps TerminalEmbed.
+ * Supports both local PTY sessions and SSH remote sessions.
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import TerminalEmbed from "./TerminalEmbed";
+import SshTerminalEmbed from "./SshTerminalEmbed";
 import ErrorNotificationBar from "./ErrorNotificationBar";
+import SshConnectDialog, {
+  type SshConnectionConfig,
+} from "./SshConnectDialog";
 import useVimMode from "../../hooks/useVimMode";
 import { useTerminalErrorDetection } from "../../hooks/useTerminalErrorDetection";
+import { sshConnect, sshDisconnect } from "../../lib/tauri-ssh";
 import "./TerminalPane.css";
 
 interface TerminalPaneProps {
   paneId: string;
+  paneMode?: string;
+  paneHostId?: string;
   sessionId: string | null;
   isFocused: boolean;
   showCloseBtn: boolean;
@@ -26,6 +30,7 @@ interface TerminalPaneProps {
   onSessionId: (paneId: string, sessionId: string | null) => void;
   onFocus: (paneId: string) => void;
   onClose: (paneId: string) => void;
+  onModeChange?: (paneId: string, mode: string, hostId: string) => void;
   onErrorAction?: (action: string, error: unknown) => void;
   customKeyHandler?: (event: KeyboardEvent) => boolean;
   clearRef?: React.MutableRefObject<(() => void) | null>;
@@ -35,6 +40,8 @@ interface TerminalPaneProps {
 
 export default function TerminalPane({
   paneId,
+  paneMode = "local",
+  paneHostId = "",
   sessionId,
   isFocused,
   showCloseBtn,
@@ -44,6 +51,7 @@ export default function TerminalPane({
   onSessionId,
   onFocus,
   onClose,
+  onModeChange,
   onErrorAction,
   customKeyHandler,
   clearRef,
@@ -56,6 +64,10 @@ export default function TerminalPane({
     scrollToTop: () => void;
     scrollToBottom: () => void;
   } | null>(null);
+
+  const [showSshDialog, setShowSshDialog] = useState(false);
+  const [sshConnecting, setSshConnecting] = useState(false);
+  const [sshError, setSshError] = useState<string | null>(null);
 
   // Vim mode hook
   const { vimMode, vimKeyHandler } = useVimMode({
@@ -87,8 +99,12 @@ export default function TerminalPane({
   }, [paneId, onFocus]);
 
   const handleClose = useCallback(() => {
+    // If SSH session, disconnect it
+    if (paneMode === "ssh" && sessionId) {
+      sshDisconnect(sessionId).catch(() => {});
+    }
     onClose(paneId);
-  }, [paneId, onClose]);
+  }, [paneId, paneMode, sessionId, onClose]);
 
   // Compose key handlers: vim → workspace shortcuts
   const composedKeyHandler = useCallback(
@@ -96,13 +112,13 @@ export default function TerminalPane({
       // Vim mode intercepts first
       if (vimEnabled) {
         const passThrough = vimKeyHandler(event);
-        if (!passThrough) return false; // vim consumed the key
+        if (!passThrough) return false;
       }
       // Then workspace shortcuts
       if (customKeyHandler) {
         return customKeyHandler(event);
       }
-      return true; // pass to terminal
+      return true;
     },
     [vimEnabled, vimKeyHandler, customKeyHandler],
   );
@@ -115,13 +131,110 @@ export default function TerminalPane({
     [signalActivity],
   );
 
+  // SSH connection handler
+  const handleSshConnect = useCallback(
+    async (config: SshConnectionConfig) => {
+      setSshConnecting(true);
+      setSshError(null);
+      try {
+        const sid = await sshConnect({
+          host: config.host,
+          port: config.port,
+          user: config.user,
+          authMethod: config.authMethod,
+          keyPath: config.keyPath,
+          keyPassphrase: config.keyPassphrase,
+          password: config.password,
+          bastionHost: config.bastionHost,
+          bastionPort: config.bastionPort,
+          bastionUser: config.bastionUser,
+          bastionKeyPath: config.bastionKeyPath,
+        });
+
+        // Update pane mode to SSH
+        if (onModeChange) {
+          onModeChange(
+            paneId,
+            "ssh",
+            `${config.user}@${config.host}:${config.port}`,
+          );
+        }
+        onSessionId(paneId, sid);
+        onConnect(paneId);
+        setShowSshDialog(false);
+        setSshConnecting(false);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSshError(msg);
+        setSshConnecting(false);
+      }
+    },
+    [paneId, onModeChange, onSessionId, onConnect],
+  );
+
+  // Session type label
+  const sessionLabel =
+    paneMode === "ssh" ? paneHostId || "SSH" : "Local";
+  const sessionLabelClass =
+    paneMode === "ssh"
+      ? "terminal-pane__label terminal-pane__label--ssh"
+      : "terminal-pane__label";
+
   return (
     <div
       className={`terminal-pane ${isFocused ? "terminal-pane--focused" : ""}`}
       onClick={handleFocus}
     >
       <div className="terminal-pane__header">
-        <span className="terminal-pane__label">Local</span>
+        <span className={sessionLabelClass}>
+          {paneMode === "ssh" && (
+            <svg
+              className="terminal-pane__label-icon"
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15 3h6v6" />
+              <path d="M10 14L21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          )}
+          {sessionLabel}
+        </span>
+
+        {/* SSH connect button — shown when in local mode */}
+        {paneMode === "local" && (
+          <button
+            className="terminal-pane__ssh-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowSshDialog(true);
+            }}
+            title="SSH Connect"
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15 3h6v6" />
+              <path d="M10 14L21 3" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+            SSH
+          </button>
+        )}
+
         {vimEnabled && (
           <span
             className={`terminal-pane__vim-badge terminal-pane__vim-badge--${vimMode}`}
@@ -154,32 +267,56 @@ export default function TerminalPane({
       </div>
 
       <div className="terminal-pane__body">
-        <TerminalEmbed
-          key={paneId}
-          sessionId={sessionId}
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-          onSessionId={handleSessionId}
-          onData={handleData}
-          customKeyHandler={composedKeyHandler}
-          clearRef={clearRef}
-          reconnectRef={reconnectRef}
-          scrollRef={scrollRef}
-          visible={visible}
-        />
+        {paneMode === "ssh" && sessionId ? (
+          <SshTerminalEmbed
+            key={`ssh-${paneId}`}
+            sessionId={sessionId}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onData={handleData}
+            customKeyHandler={composedKeyHandler}
+            clearRef={clearRef}
+            scrollRef={scrollRef}
+            visible={visible}
+          />
+        ) : (
+          <TerminalEmbed
+            key={paneId}
+            sessionId={sessionId}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onSessionId={handleSessionId}
+            onData={handleData}
+            customKeyHandler={composedKeyHandler}
+            clearRef={clearRef}
+            reconnectRef={reconnectRef}
+            scrollRef={scrollRef}
+            visible={visible}
+          />
+        )}
 
         {/* Error detection bar */}
         {detectedError && (
           <ErrorNotificationBar
             error={detectedError}
-            onAction={(action, error) =>
-              onErrorAction?.(action, error)
-            }
+            onAction={(action, error) => onErrorAction?.(action, error)}
             onDismiss={dismissError}
             mode="balanced"
           />
         )}
       </div>
+
+      {/* SSH Connection Dialog */}
+      <SshConnectDialog
+        isOpen={showSshDialog}
+        onClose={() => {
+          setShowSshDialog(false);
+          setSshError(null);
+        }}
+        onConnect={handleSshConnect}
+        connecting={sshConnecting}
+        error={sshError}
+      />
     </div>
   );
 }
