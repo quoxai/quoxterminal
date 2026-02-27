@@ -13,7 +13,7 @@ import './FleetDashboard.css';
 interface FleetDashboardProps {
   onClose: () => void;
   /** Called when user clicks a host to open an SSH connection */
-  onConnectHost?: (hostId: string) => void;
+  onConnectHost?: (agent: FleetAgent) => void;
 }
 
 /** Format seconds to human-readable uptime. */
@@ -132,7 +132,7 @@ export default function FleetDashboard({ onClose, onConnectHost }: FleetDashboar
                 <div
                   key={agent.host_id}
                   className="fleet-dashboard__agent"
-                  onClick={() => onConnectHost?.(agent.host_id)}
+                  onClick={() => onConnectHost?.(agent)}
                   title={`Connect to ${agent.host_id}`}
                 >
                   <div className={`fleet-dashboard__agent-dot fleet-dashboard__agent-dot--${agent.status}`} />

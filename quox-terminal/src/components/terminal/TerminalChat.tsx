@@ -27,8 +27,15 @@ import { storeGet, storeSet } from '../../lib/store';
 import { TERMINAL_MODES, DEFAULT_MODE, type ModeId } from '../../config/terminalModes';
 import { buildTerminalContext } from '../../services/terminalContextBuilder';
 import { composeSystemPrompt } from '../../config/terminalModes';
+import { execInTerminal, type ValidationResult } from '../../services/terminalExecService';
+import { onMemoryEvent, type MemoryEvent } from '../../services/terminalMemoryBridge';
+import { parseFileBlocks, hasFileBlocks, type FileSegment } from '../../utils/fileBlockParser';
 import RunnableCodeBlock from './RunnableCodeBlock';
 import SuggestionChips, { type SuggestionChip } from './SuggestionChips';
+import TerminalExecConfirmModal from './TerminalExecConfirmModal';
+import MemoryActivityFeed from './MemoryActivityFeed';
+import FileChangeCard from './FileChangeCard';
+import { FileChangeGroupProvider } from './FileChangeGroup';
 import './TerminalChat.css';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -190,6 +197,13 @@ export default function TerminalChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Phase 1a: Exec confirm modal state
+  const [execPending, setExecPending] = useState<{ command: string; validation: ValidationResult } | null>(null);
+
+  // Phase 1b: Memory Activity Feed state
+  const [memoryEvents, setMemoryEvents] = useState<MemoryEvent[]>([]);
+  const [memoryFeedCollapsed, setMemoryFeedCollapsed] = useState(true);
+
   // Load saved model and mode selections
   useEffect(() => {
     loadModelSelection(workspaceId).then(saved => {
@@ -204,6 +218,18 @@ export default function TerminalChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Subscribe to memory bridge events for the MemoryActivityFeed
+  useEffect(() => {
+    const MAX_EVENTS = 100;
+    const unsubscribe = onMemoryEvent((event: MemoryEvent) => {
+      setMemoryEvents(prev => {
+        const next = [...prev, event];
+        return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
+      });
+    });
+    return unsubscribe;
+  }, []);
 
   const handleModelChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const model = e.target.value;
@@ -402,6 +428,7 @@ export default function TerminalChat({
           {...props}
           sessionId={sessionId}
           mode={selectedMode}
+          onExecRequest={(cmd: string, val: ValidationResult) => setExecPending({ command: cmd, validation: val })}
         />
       );
     },
@@ -474,6 +501,15 @@ export default function TerminalChat({
         </select>
       </div>
 
+      {/* Memory Activity Feed */}
+      <MemoryActivityFeed
+        events={memoryEvents}
+        isCollapsed={memoryFeedCollapsed}
+        toggleCollapsed={() => setMemoryFeedCollapsed(c => !c)}
+        eventCount={memoryEvents.length}
+        clearEvents={() => setMemoryEvents([])}
+      />
+
       {/* Messages */}
       <div className="terminal-chat__messages">
         {messages.length === 0 && (
@@ -490,7 +526,28 @@ export default function TerminalChat({
           <div key={msg.id} className={`terminal-chat__message terminal-chat__message--${msg.role}`}>
             <div className={`terminal-chat__bubble ${msg.pending ? 'terminal-chat__bubble--pending' : ''}`}>
               {msg.role === 'assistant' ? (
-                <ChatMd>{msg.text}</ChatMd>
+                hasFileBlocks(msg.text) ? (
+                  <FileChangeGroupProvider mode={selectedMode} sessionId={sessionId}>
+                    {parseFileBlocks(msg.text).map((segment, idx) =>
+                      segment.type === 'markdown' ? (
+                        <ChatMd key={idx}>{segment.text}</ChatMd>
+                      ) : (
+                        <FileChangeCard
+                          key={idx}
+                          filePath={(segment as FileSegment).filePath}
+                          action={(segment as FileSegment).action}
+                          content={(segment as FileSegment).content}
+                          meta={(segment as FileSegment).meta}
+                          targetPath={(segment as FileSegment).targetPath}
+                          sessionId={sessionId}
+                          mode={selectedMode}
+                        />
+                      )
+                    )}
+                  </FileChangeGroupProvider>
+                ) : (
+                  <ChatMd>{msg.text}</ChatMd>
+                )
               ) : (
                 <span>{msg.text}</span>
               )}
@@ -544,6 +601,23 @@ export default function TerminalChat({
           </div>
         )}
       </div>
+
+      {/* Exec Confirm Modal — shown when RunnableCodeBlock triggers REQUIRE_APPROVAL */}
+      {execPending && (
+        <TerminalExecConfirmModal
+          isOpen={true}
+          onClose={() => setExecPending(null)}
+          command={execPending.command}
+          validation={execPending.validation}
+          onConfirm={async () => {
+            const pending = execPending;
+            setExecPending(null);
+            if (sessionId) {
+              await execInTerminal(sessionId, pending.command);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

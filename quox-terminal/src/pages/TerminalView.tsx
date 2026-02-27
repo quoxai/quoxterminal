@@ -19,6 +19,8 @@ import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
 import FleetDashboard from "../components/hosts/FleetDashboard";
+import type { FleetAgent } from "../services/fleetService";
+import type { FleetHost } from "../services/bastionClient";
 import { ptyKill } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import "./terminal-view.css";
@@ -115,9 +117,10 @@ export default function TerminalView() {
     suggestion: string;
   } | null>(null);
 
-  // Per-pane refs for clear/reconnect
+  // Per-pane refs for clear/reconnect/connect
   const clearRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
   const reconnectRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
+  const connectRefs = useRef<Record<string, React.MutableRefObject<((host: FleetHost) => void) | null>>>({});
 
   // Ensure refs exist for all panes
   for (const pane of panes) {
@@ -126,6 +129,9 @@ export default function TerminalView() {
     }
     if (!reconnectRefs.current[pane.id]) {
       reconnectRefs.current[pane.id] = { current: null };
+    }
+    if (!connectRefs.current[pane.id]) {
+      connectRefs.current[pane.id] = { current: null };
     }
   }
 
@@ -597,6 +603,7 @@ export default function TerminalView() {
               customKeyHandler={handleShortcut}
               clearRef={clearRefs.current[pane.id]}
               reconnectRef={reconnectRefs.current[pane.id]}
+              connectRef={connectRefs.current[pane.id]}
               visible={true}
             />
           ))}
@@ -606,12 +613,24 @@ export default function TerminalView() {
         {fleetOpen && (
           <FleetDashboard
             onClose={() => setFleetOpen(false)}
-            onConnectHost={(hostId) => {
-              // Close fleet panel and trigger SSH connection to this host
+            onConnectHost={(agent: FleetAgent) => {
+              // Close fleet panel and trigger SSH on the focused pane
               setFleetOpen(false);
-              // The HostPicker in TerminalPane handles the actual connection
-              // For now, just log — full integration would auto-connect the focused pane
-              console.log(`[Fleet] Connect to host: ${hostId}`);
+              // Convert FleetAgent → FleetHost for handleHostSelect
+              const host: FleetHost = {
+                hostname: agent.ip || agent.host_id,
+                ip: agent.ip || null,
+                group: agent.group || null,
+                status: agent.status || null,
+                lastSeen: agent.last_seen ? new Date(agent.last_seen).toISOString() : null,
+                os: agent.os || null,
+                cpuCount: null,
+                memoryTotal: null,
+              };
+              const ref = connectRefs.current[focusedPaneId];
+              if (ref?.current) {
+                ref.current(host);
+              }
             }}
           />
         )}

@@ -10,9 +10,10 @@
  * fallback opens the full SSH connection dialog.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useMemo } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
+import HostKnowledgeCard from "./HostKnowledgeCard";
 import ErrorNotificationBar from "./ErrorNotificationBar";
 import SshConnectDialog, {
   type SshConnectionConfig,
@@ -43,6 +44,7 @@ interface TerminalPaneProps {
   customKeyHandler?: (event: KeyboardEvent) => boolean;
   clearRef?: React.MutableRefObject<(() => void) | null>;
   reconnectRef?: React.MutableRefObject<(() => void) | null>;
+  connectRef?: React.MutableRefObject<((host: FleetHost) => void) | null>;
   visible?: boolean;
 }
 
@@ -64,6 +66,7 @@ export default function TerminalPane({
   customKeyHandler,
   clearRef,
   reconnectRef,
+  connectRef,
   visible = true,
 }: TerminalPaneProps) {
   const scrollRef = useRef<{
@@ -225,6 +228,26 @@ export default function TerminalPane({
     [paneId, onModeChange, onSessionId, onConnect],
   );
 
+  // Expose handleHostSelect via connectRef for external callers (e.g. FleetDashboard)
+  if (connectRef) {
+    connectRef.current = handleHostSelect;
+  }
+
+  // Host Knowledge Card state
+  const [knowledgeCardDismissed, setKnowledgeCardDismissed] = useState(false);
+
+  // Read local session history for the knowledge card
+  const localSessions = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('quox_terminal_sessions');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }, [paneMode, paneHostId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const showKnowledgeCard = paneMode === 'ssh' && paneHostId && !knowledgeCardDismissed && localSessions.length > 0;
+
   // Session type label
   const sessionLabel =
     paneMode === "ssh" ? paneHostId || "SSH" : "Local";
@@ -320,6 +343,19 @@ export default function TerminalPane({
       </div>
 
       <div className="terminal-pane__body">
+        {/* Host Knowledge Card — shown for known SSH hosts */}
+        {showKnowledgeCard && (
+          <HostKnowledgeCard
+            hostId={paneHostId}
+            sessions={localSessions}
+            lastError={detectedError ? {
+              errorType: detectedError.errorType || 'error',
+              errorLine: detectedError.errorLine || '',
+            } : null}
+            onDismiss={() => setKnowledgeCardDismissed(true)}
+          />
+        )}
+
         {paneMode === "ssh" && sessionId ? (
           <SshTerminalEmbed
             key={`ssh-${paneId}`}
