@@ -277,6 +277,13 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.quox-settings__badge-detail {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  margin-left: 6px;
+}
+
 /* ═══ Fields ═══ */
 
 .quox-settings__field {

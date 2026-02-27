@@ -12,10 +12,17 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { storeGet, storeSet } from "../../lib/store";
 import { clearHostCache } from "../../services/bastionClient";
 import SettingsTerminal from "./SettingsTerminal";
 import "./QuoxSettings.css";
+
+interface ChatAuthStatus {
+  ready: boolean;
+  auth_method: string;
+  cli_expires_in_minutes: number | null;
+}
 
 interface QuoxSettingsProps {
   isOpen: boolean;
@@ -61,7 +68,12 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
   const [showTerminal, setShowTerminal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [authStatus, setAuthStatus] = useState<ChatAuthStatus | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const refreshAuthStatus = useCallback(() => {
+    invoke<ChatAuthStatus>("chat_auth_status").then(setAuthStatus).catch(() => {});
+  }, []);
 
   // Load config on mount
   useEffect(() => {
@@ -77,7 +89,8 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
         anthropicApiKey: apiKey || "",
       });
     });
-  }, [isOpen]);
+    refreshAuthStatus();
+  }, [isOpen, refreshAuthStatus]);
 
   const updateField = useCallback(
     (field: keyof QuoxConfig, value: string) => {
@@ -265,7 +278,20 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
                     <span className="quox-settings__card-hint">Use your Claude Pro/Max/Team plan instead of an API key</span>
                   </div>
                   <div className="quox-settings__card-status">
-                    <span className="quox-settings__badge quox-settings__badge--missing">CLI Auth</span>
+                    {authStatus?.auth_method === "cli_credentials" ? (
+                      <>
+                        <span className="quox-settings__badge quox-settings__badge--ok">CLI Authenticated</span>
+                        {authStatus.cli_expires_in_minutes != null && (
+                          <span className="quox-settings__badge-detail">
+                            expires in {Math.round(authStatus.cli_expires_in_minutes / 60)}h
+                          </span>
+                        )}
+                      </>
+                    ) : authStatus?.auth_method === "api_key" ? (
+                      <span className="quox-settings__badge quox-settings__badge--ok">API Key Active</span>
+                    ) : (
+                      <span className="quox-settings__badge quox-settings__badge--missing">Not Connected</span>
+                    )}
                   </div>
                 </div>
                 <div className="quox-settings__card-body">
@@ -283,16 +309,19 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
                   {showTerminal && (
                     <div className="quox-settings__terminal-container">
                       <SettingsTerminal
-                        initialCommand="claude login"
+                        initialCommand="claude"
                         onConnect={() => {}}
-                        onDisconnect={() => {}}
+                        onDisconnect={() => {
+                          // Refresh auth status after terminal closes — user may have logged in
+                          setTimeout(() => refreshAuthStatus(), 1000);
+                        }}
                       />
                     </div>
                   )}
 
                   <span className="quox-settings__terminal-hint">
                     {showTerminal
-                      ? "Follow the prompts to sign in with your Claude account."
+                      ? "Type /login in the Claude CLI to sign in with your account."
                       : "Open the terminal to sign in with your Claude account"}
                   </span>
                 </div>

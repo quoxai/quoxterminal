@@ -154,10 +154,10 @@ pub fn validate_command(command: String) -> crate::safety::validator::Validation
 
 /// Send a chat message to the AI (Anthropic Messages API).
 ///
-/// Reads the API key from the Tauri store file on disk. The frontend provides:
-/// - messages: conversation history
-/// - model: model identifier
-/// - system_prompt: composed system prompt with mode policy + terminal context
+/// Authentication priority (matches QuoxCORE):
+/// 1. Claude CLI OAuth token from ~/.claude/.credentials.json (from `claude login`)
+/// 2. Manual API key from Settings store
+/// 3. ANTHROPIC_API_KEY environment variable
 #[tauri::command]
 pub async fn chat_send(
     messages: Vec<ChatMessage>,
@@ -167,10 +167,8 @@ pub async fn chat_send(
 ) -> Result<String, String> {
     use tauri::Manager;
 
-    // Read API key from the Tauri store file or environment variable.
-    // The store file is written by tauri-plugin-store at:
-    //   {app_data_dir}/quox-terminal-settings.json
-    let api_key = {
+    // Read manual API key from the Tauri store (fallback if no CLI credentials)
+    let manual_api_key = {
         let store_path = app_handle
             .path()
             .app_data_dir()
@@ -188,12 +186,45 @@ pub async fn chat_send(
                 .map(|s| s.to_string())
                 .unwrap_or_default()
         } else {
-            // Check environment variable as fallback
-            std::env::var("ANTHROPIC_API_KEY").unwrap_or_default()
+            String::new()
         }
     };
 
-    client::chat_send(messages, &model, &api_key, &system_prompt).await
+    // resolve_auth checks CLI credentials first, then manual key, then env var
+    client::chat_send(messages, &model, &manual_api_key, &system_prompt).await
+}
+
+/// Get current chat authentication status.
+///
+/// Returns auth method and readiness — used by the frontend to show
+/// status badges in Settings (matches QuoxCORE /chat/status pattern).
+#[tauri::command]
+pub async fn chat_auth_status(
+    app_handle: AppHandle,
+) -> Result<client::ChatAuthStatus, String> {
+    use tauri::Manager;
+
+    let manual_api_key = {
+        let store_path = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get app data dir: {}", e))?
+            .join("quox-terminal-settings.json");
+
+        if store_path.exists() {
+            let content = std::fs::read_to_string(&store_path).unwrap_or_default();
+            let parsed: serde_json::Value = serde_json::from_str(&content).unwrap_or_default();
+            parsed
+                .get("anthropic-api-key")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        }
+    };
+
+    Ok(client::get_auth_status(&manual_api_key))
 }
 
 // ── SSH Commands ─────────────────────────────────────────────────────────────
