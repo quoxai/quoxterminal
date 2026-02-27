@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            label: macOS (Apple Silicon)
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            label: macOS (Intel)
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: Linux (x64)
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: Windows (x64)
+
+    name: Build — ${{ matrix.label }}
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: quox-terminal/src-tauri -> target
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: quox-terminal/package-lock.json
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install frontend dependencies
+        working-directory: quox-terminal
+        run: npm ci
+
+      - name: Build with Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: quox-terminal
+          tauriScript: npx tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: QuoxTerminal ${{ github.ref_name }}
+          releaseBody: |
+            See the [full changelog](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details.
+
+            ## Install
+
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon) | `.dmg` (aarch64) |
+            | macOS (Intel) | `.dmg` (x64) |
+            | Windows | `.msi` installer |
+            | Linux (Debian/Ubuntu) | `.deb` package |
+            | Linux (universal) | `.AppImage` |
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
