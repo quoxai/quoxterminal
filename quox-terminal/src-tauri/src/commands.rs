@@ -5,8 +5,18 @@ use crate::pty::manager::SessionInfo;
 use crate::pty::shell::detect_default_shell;
 use crate::settings::fonts::list_monospace_fonts;
 use crate::settings::shells::{list_available_shells, ShellInfo};
+use crate::ssh::session::{AuthMethod, BastionConfig, SshSession};
 use crate::state::AppState;
 use tauri::{AppHandle, State};
+
+/// Serializable SSH key info for the frontend.
+#[derive(Debug, serde::Serialize)]
+pub struct SshKeyInfoJson {
+    pub name: String,
+    pub path: String,
+    pub key_type: Option<String>,
+    pub has_public_key: bool,
+}
 
 /// Spawn a new PTY session. Returns the session ID.
 #[tauri::command]
@@ -136,6 +146,12 @@ pub fn fs_rename_file(old_path: String, new_path: String) -> Result<(), String> 
     crate::fs::operations::rename_file(&old_path, &new_path)
 }
 
+/// Validate a command against the safety denylist.
+#[tauri::command]
+pub fn validate_command(command: String) -> crate::safety::validator::ValidationResult {
+    crate::safety::validator::validate_command(&command)
+}
+
 /// Send a chat message to the AI (Anthropic Messages API).
 ///
 /// Reads the API key from the Tauri store file on disk. The frontend provides:
@@ -178,4 +194,180 @@ pub async fn chat_send(
     };
 
     client::chat_send(messages, &model, &api_key, &system_prompt).await
+}
+
+// ── SSH Commands ─────────────────────────────────────────────────────────────
+
+/// Connect to a remote host via SSH. Returns a session ID.
+///
+/// Supports key-based and password authentication, with optional
+/// bastion/jump host tunneling.
+#[tauri::command]
+pub async fn ssh_connect(
+    host: String,
+    port: Option<u16>,
+    user: String,
+    auth_method: String, // "key" or "password"
+    key_path: Option<String>,
+    key_passphrase: Option<String>,
+    password: Option<String>,
+    bastion_host: Option<String>,
+    bastion_port: Option<u16>,
+    bastion_user: Option<String>,
+    bastion_key_path: Option<String>,
+    cols: Option<u16>,
+    rows: Option<u16>,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<String, String> {
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let port = port.unwrap_or(22);
+    let cols = cols.unwrap_or(80);
+    let rows = rows.unwrap_or(24);
+
+    let auth = match auth_method.as_str() {
+        "key" => {
+            let path = key_path.unwrap_or_else(|| {
+                dirs::home_dir()
+                    .map(|h| h.join(".ssh").join("id_ed25519").to_string_lossy().to_string())
+                    .unwrap_or_default()
+            });
+            AuthMethod::Key {
+                path,
+                passphrase: key_passphrase,
+            }
+        }
+        "password" => AuthMethod::Password {
+            password: password.ok_or("Password is required for password auth")?,
+        },
+        _ => return Err(format!("Unknown auth method: {}", auth_method)),
+    };
+
+    let bastion = if let Some(bhost) = bastion_host {
+        Some(BastionConfig {
+            host: bhost,
+            port: bastion_port.unwrap_or(22),
+            user: bastion_user.unwrap_or_else(|| "control".to_string()),
+            key_path: bastion_key_path.unwrap_or_else(|| {
+                dirs::home_dir()
+                    .map(|h| h.join(".ssh").join("id_ed25519").to_string_lossy().to_string())
+                    .unwrap_or_default()
+            }),
+            passphrase: None,
+        })
+    } else {
+        None
+    };
+
+    let session = SshSession::connect(
+        session_id.clone(),
+        &host,
+        port,
+        &user,
+        auth,
+        bastion,
+        cols,
+        rows,
+        app_handle,
+    )
+    .await?;
+
+    // Store in SSH session manager (tokio::sync::Mutex)
+    let mut manager = state.ssh_sessions.lock().await;
+    manager.insert(session_id.clone(), session);
+
+    log::info!(
+        "SSH session connected: {} -> {}@{}:{}",
+        session_id,
+        user,
+        host,
+        port
+    );
+    Ok(session_id)
+}
+
+/// Disconnect an SSH session.
+#[tauri::command]
+pub async fn ssh_disconnect(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut session = {
+        let mut manager = state.ssh_sessions.lock().await;
+        manager
+            .remove(&session_id)
+            .ok_or_else(|| format!("SSH session not found: {}", session_id))?
+    };
+    session.disconnect().await?;
+    log::info!("SSH session disconnected: {}", session_id);
+    Ok(())
+}
+
+/// Write data to an SSH session's remote shell.
+#[tauri::command]
+pub async fn ssh_write(
+    session_id: String,
+    data: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let manager = state.ssh_sessions.lock().await;
+    let session = manager
+        .get(&session_id)
+        .ok_or_else(|| format!("SSH session not found: {}", session_id))?;
+    session.write(data.as_bytes()).await
+}
+
+/// Resize an SSH session's remote PTY.
+#[tauri::command]
+pub async fn ssh_resize(
+    session_id: String,
+    cols: u16,
+    rows: u16,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let manager = state.ssh_sessions.lock().await;
+    let session = manager
+        .get(&session_id)
+        .ok_or_else(|| format!("SSH session not found: {}", session_id))?;
+    session.resize(cols, rows).await
+}
+
+/// List SSH keys from ~/.ssh/.
+#[tauri::command]
+pub fn ssh_list_keys() -> Result<Vec<SshKeyInfoJson>, String> {
+    use crate::ssh::key_manager;
+    let keys = key_manager::list_ssh_keys()?;
+    Ok(keys
+        .into_iter()
+        .map(|k| SshKeyInfoJson {
+            name: k.name,
+            path: k.path.to_string_lossy().to_string(),
+            key_type: k.key_type,
+            has_public_key: k.has_public_key,
+        })
+        .collect())
+}
+
+/// Check if an SSH session exists and is tracked by the backend.
+#[tauri::command]
+pub async fn ssh_session_exists(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let manager = state.ssh_sessions.lock().await;
+    Ok(manager.contains_key(&session_id))
+}
+
+/// Get terminal output from an SSH session's ring buffer.
+#[tauri::command]
+pub async fn ssh_get_output(
+    session_id: String,
+    chars: usize,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let manager = state.ssh_sessions.lock().await;
+    let session = manager
+        .get(&session_id)
+        .ok_or_else(|| format!("SSH session not found: {}", session_id))?;
+    Ok(session.read_output(chars))
 }

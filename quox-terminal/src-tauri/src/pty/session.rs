@@ -8,12 +8,13 @@ use tauri::{AppHandle, Emitter};
 // ── Shell integration scripts ────────────────────────────────────────────────
 //
 // These create a colourful, informative prompt that shows:
-//   quox ~/current/path (git-branch) ❯
+//   hostname ~/current/path (git-branch) ❯
 //
-// - "quox" in bold green (app identity)
-// - working directory in blue
-// - git branch in yellow (when inside a repo)
-// - ❯ arrow: green on success, red on error
+// Uses the Quox brand palette:
+// - hostname in bold sky-blue #38bdf8 (quox primary)
+// - working directory in light blue
+// - git branch in violet #a78bfa (quox secondary)
+// - ❯ arrow: sky-blue on success, red on error
 //
 // Users can opt out by setting QUOX_NO_PROMPT=1 in their environment.
 
@@ -31,11 +32,11 @@ ZDOTDIR="$HOME"
 _quox_git_info() {
   local ref
   ref=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
-  [[ -n "$ref" ]] && echo " %F{yellow}($ref)%f"
+  [[ -n "$ref" ]] && echo " %F{#a78bfa}($ref)%f"
 }
 
 setopt PROMPT_SUBST
-PROMPT='%B%F{green}quox%f%b %F{blue}%~%f$(_quox_git_info) %F{%(?.green.red)}❯%f '
+PROMPT='%B%F{#38bdf8}%m%f%b %F{#7dd3fc}%~%f$(_quox_git_info) %F{%(?.#38bdf8.red)}❯%f '
 RPROMPT=''
 "#;
 
@@ -50,21 +51,22 @@ const BASH_INTEGRATION: &str = r#"# QuoxTerminal — bash prompt integration
 # ── QuoxTerminal prompt ──
 __quox_prompt() {
   local ec=$?
-  local green='\[\e[1;32m\]'
-  local blue='\[\e[0;34m\]'
-  local yellow='\[\e[0;33m\]'
+  local cyan='\[\e[38;2;56;189;248m\]'
+  local lcyan='\[\e[38;2;125;211;252m\]'
+  local violet='\[\e[38;2;167;139;250m\]'
   local red='\[\e[0;31m\]'
+  local bcyan='\[\e[1m\]\[\e[38;2;56;189;248m\]'
   local reset='\[\e[0m\]'
 
   local gb
   gb=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
   local gp=""
-  [[ -n "$gb" ]] && gp=" ${yellow}(${gb})${reset}"
+  [[ -n "$gb" ]] && gp=" ${violet}(${gb})${reset}"
 
-  local ac=${green}
+  local ac=${cyan}
   [[ $ec -ne 0 ]] && ac=${red}
 
-  PS1="${green}quox${reset} ${blue}\w${reset}${gp} ${ac}❯${reset} "
+  PS1="${bcyan}\h${reset} ${lcyan}\w${reset}${gp} ${ac}❯${reset} "
 }
 PROMPT_COMMAND='__quox_prompt'
 "#;

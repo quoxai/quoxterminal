@@ -40,7 +40,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 export const TERM_THEME = {
   background: "#0a0e14",
   foreground: "#b3b1ad",
-  cursor: "#22c55e",
+  cursor: "#38bdf8",
   cursorAccent: "#0a0e14",
   selectionBackground: "#1a1f29",
   selectionForeground: "#e6e1cf",

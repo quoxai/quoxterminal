@@ -105,13 +105,59 @@ pub fn list_ssh_keys() -> Result<Vec<SshKeyInfo>, String> {
     Ok(keys)
 }
 
-/// Generate a new SSH key pair (stub).
+/// Generate a new SSH key pair using ssh-keygen (most portable approach).
 ///
-/// TODO: Implement key generation using russh-keys or ssh-key crate.
+/// Generates the key in ~/.ssh/ with the name id_{key_type}.
+/// Returns the path to the generated private key.
 pub fn generate_key(
-    _key_type: &str,
-    _comment: &str,
-    _passphrase: Option<&str>,
+    key_type: &str,
+    comment: &str,
+    passphrase: Option<&str>,
 ) -> Result<PathBuf, String> {
-    Err("SSH key generation not yet implemented".to_string())
+    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
+    let ssh_dir = home.join(".ssh");
+    std::fs::create_dir_all(&ssh_dir).map_err(|e| format!("Failed to create ~/.ssh: {}", e))?;
+
+    let key_name = format!("id_{}", key_type.to_lowercase());
+    let priv_path = ssh_dir.join(&key_name);
+
+    if priv_path.exists() {
+        return Err(format!("Key already exists: {}", priv_path.display()));
+    }
+
+    // Generate key using ssh-keygen command
+    let mut cmd = std::process::Command::new("ssh-keygen");
+    cmd.args(["-t", key_type, "-C", comment, "-f"]);
+    cmd.arg(&priv_path);
+    if let Some(pass) = passphrase {
+        cmd.args(["-N", pass]);
+    } else {
+        cmd.args(["-N", ""]);
+    }
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to run ssh-keygen: {}", e))?;
+    if !output.status.success() {
+        return Err(format!(
+            "ssh-keygen failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(priv_path)
+}
+
+/// Load a private key from disk for use in SSH connections.
+///
+/// Supports OpenSSH and PEM format keys, with optional passphrase decryption.
+pub async fn load_private_key(
+    path: &std::path::Path,
+    passphrase: Option<&str>,
+) -> Result<russh_keys::key::KeyPair, String> {
+    let key_data =
+        std::fs::read(path).map_err(|e| format!("Failed to read key file: {}", e))?;
+
+    russh_keys::decode_secret_key(&String::from_utf8_lossy(&key_data), passphrase)
+        .map_err(|e| format!("Failed to decode SSH key: {}", e))
 }

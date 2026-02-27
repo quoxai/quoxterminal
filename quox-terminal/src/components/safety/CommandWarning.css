@@ -1,0 +1,119 @@
+.command-warning {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1f29;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 12px 16px;
+  z-index: 100;
+  min-width: 300px;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: commandWarningSlideUp 0.2s ease-out;
+}
+
+@keyframes commandWarningSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.command-warning__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.command-warning__icon {
+  font-size: 16px;
+}
+
+.command-warning__title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.command-warning__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 4px;
+}
+
+.command-warning__close:hover {
+  color: #b3b1ad;
+}
+
+.command-warning__description {
+  color: #8a8a8a;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.command-warning__command {
+  background: #0d1117;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+}
+
+.command-warning__command code {
+  color: #ea6c73;
+  font-size: 12px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.command-warning__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.command-warning__btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #1a1f29;
+  color: #b3b1ad;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.command-warning__btn:hover {
+  background: #252b37;
+}
+
+.command-warning__btn--cancel {
+  border-color: #444;
+}
+
+.command-warning__btn--approve {
+  background: #2d1a1a;
+  border-color: #ea6c73;
+  color: #ea6c73;
+}
+
+.command-warning__btn--approve:hover {
+  background: #3a2020;
+}
+
+/* Warning toast auto-dismisses */
+.command-warning--warning {
+  padding: 8px 12px;
+  min-width: auto;
+}
+
+.command-warning--warning .command-warning__header {
+  margin-bottom: 0;
+}

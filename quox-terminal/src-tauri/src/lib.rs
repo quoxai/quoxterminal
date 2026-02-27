@@ -10,6 +10,9 @@ mod collector;
 // Phase 4: AI Chat Integration
 mod ai;
 
+// Phase 3: Command Safety System
+mod safety;
+
 // Phase 6: Native file operations
 mod fs;
 
@@ -42,7 +45,16 @@ pub fn run() {
             commands::fs_write_file,
             commands::fs_delete_file,
             commands::fs_rename_file,
+            commands::validate_command,
             commands::chat_send,
+            // SSH commands
+            commands::ssh_connect,
+            commands::ssh_disconnect,
+            commands::ssh_write,
+            commands::ssh_resize,
+            commands::ssh_list_keys,
+            commands::ssh_session_exists,
+            commands::ssh_get_output,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
