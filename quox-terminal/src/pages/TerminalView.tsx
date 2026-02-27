@@ -13,17 +13,36 @@ import useTerminalWorkspace, {
   LAYOUTS,
   getSessionsToLose,
   type LayoutPreset,
+  type WorkspaceState,
 } from "../hooks/useTerminalWorkspace";
 import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
 import FleetDashboard from "../components/hosts/FleetDashboard";
+import SessionRestoreBanner from "../components/terminal/SessionRestoreBanner";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
 import { ptyKill } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
+import { storeGet, storeSet } from "../lib/store";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./terminal-view.css";
+
+// ── Session restore types ─────────────────────────────────────────────────
+const SESSION_STATE_KEY = "quox-terminal-previous-sessions";
+
+interface PreviousSession {
+  paneId: string;
+  mode: string;
+  hostId: string;
+  workspaceName: string;
+}
+
+interface PreviousSessionState {
+  sessions: PreviousSession[];
+  savedAt: number;
+}
 
 // ── Layout icons (SVGs for the layout picker) ──────────────────────────────
 
@@ -110,6 +129,7 @@ export default function TerminalView() {
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [previousSessions, setPreviousSessions] = useState<PreviousSession[]>([]);
   const [pendingErrorAction, setPendingErrorAction] = useState<{
     action: 'explain' | 'fix';
     errorType: string;
@@ -336,28 +356,129 @@ export default function TerminalView() {
     }
   }, [renamingTabId, renameValue, renameWorkspace]);
 
+  // ── Load previous sessions on mount (for restore banner) ──────────────
+
+  useEffect(() => {
+    storeGet<PreviousSessionState>(SESSION_STATE_KEY).then((saved) => {
+      if (saved && Array.isArray(saved.sessions) && saved.sessions.length > 0) {
+        // Only show restore if saved within last 24 hours
+        const age = Date.now() - (saved.savedAt || 0);
+        if (age < 24 * 60 * 60 * 1000) {
+          setPreviousSessions(saved.sessions);
+        }
+      }
+    });
+  }, []);
+
+  const handleRestore = useCallback(() => {
+    // Auto-connect SSH panes from previous sessions
+    const sshSessions = previousSessions.filter((s) => s.mode === "ssh" && s.hostId);
+    sshSessions.forEach((s) => {
+      const ref = connectRefs.current[s.paneId];
+      if (ref?.current) {
+        const host: FleetHost = {
+          hostname: s.hostId,
+          ip: null,
+          group: null,
+          status: null,
+          lastSeen: null,
+          os: null,
+          cpuCount: null,
+          memoryTotal: null,
+        };
+        ref.current(host);
+      }
+    });
+    setPreviousSessions([]);
+    storeSet(SESSION_STATE_KEY, null).catch(() => {});
+  }, [previousSessions]);
+
+  const handleDismissRestore = useCallback(() => {
+    setPreviousSessions([]);
+    storeSet(SESSION_STATE_KEY, null).catch(() => {});
+  }, []);
+
+  // ── Save session state helper ────────────────────────────────────────
+
+  const saveSessionState = useCallback((wsList: WorkspaceState[]) => {
+    const sessions: PreviousSession[] = [];
+    wsList.forEach((ws) => {
+      ws.panes.forEach((p) => {
+        if (p.connected && p.sessionId) {
+          sessions.push({
+            paneId: p.id,
+            mode: p.mode,
+            hostId: p.hostId,
+            workspaceName: ws.name,
+          });
+        }
+      });
+    });
+    if (sessions.length > 0) {
+      storeSet(SESSION_STATE_KEY, { sessions, savedAt: Date.now() }).catch(() => {});
+    }
+  }, []);
+
+  // ── Kill all sessions helper ─────────────────────────────────────────
+
+  const killAllSessions = useCallback((wsList: WorkspaceState[]) => {
+    wsList.forEach((ws) => {
+      ws.panes.forEach((p) => {
+        if (p.sessionId) {
+          if (p.mode === "ssh") {
+            sshDisconnect(p.sessionId).catch(() => {});
+          } else {
+            ptyKill(p.sessionId).catch(() => {});
+          }
+        }
+      });
+    });
+  }, []);
+
   // ── Close prevention & PTY cleanup on app close ───────────────────────
 
   useEffect(() => {
     if (sessionCount === 0) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // Kill all sessions across all workspaces (local + SSH)
-      workspaces.forEach((ws) => {
-        ws.panes.forEach((p) => {
-          if (p.sessionId) {
-            if (p.mode === "ssh") {
-              sshDisconnect(p.sessionId).catch(() => {});
-            } else {
-              ptyKill(p.sessionId).catch(() => {});
-            }
-          }
-        });
-      });
+      saveSessionState(workspaces);
+      killAllSessions(workspaces);
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [sessionCount, workspaces]);
+  }, [sessionCount, workspaces, saveSessionState, killAllSessions]);
+
+  // ── Tauri native window close guard ──────────────────────────────────
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
+    getCurrentWindow()
+      .onCloseRequested(async (event) => {
+        if (sessionCount > 0) {
+          const confirmed = await window.confirm(
+            `Close QuoxTerminal? ${sessionCount} active session${sessionCount !== 1 ? "s" : ""} will be terminated.`,
+          );
+          if (!confirmed) {
+            event.preventDefault();
+            return;
+          }
+          // Save session state before closing
+          saveSessionState(workspaces);
+          killAllSessions(workspaces);
+        }
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        // Not in Tauri environment (e.g., dev browser)
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [sessionCount, workspaces, saveSessionState, killAllSessions]);
 
   // ── Layout change with confirmation ────────────────────────────────────
 
@@ -579,6 +700,15 @@ export default function TerminalView() {
           </span>
         )}
       </div>
+
+      {/* Session restore banner */}
+      {previousSessions.length > 0 && (
+        <SessionRestoreBanner
+          sessions={previousSessions}
+          onRestore={handleRestore}
+          onDismiss={handleDismissRestore}
+        />
+      )}
 
       {/* Main content — terminal grid + optional chat sidebar */}
       <div className={`terminal-view__main ${chatOpen || fleetOpen ? "terminal-view__main--chat-open" : ""}`}>

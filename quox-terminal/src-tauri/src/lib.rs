@@ -16,7 +16,7 @@ mod safety;
 // Phase 6: Native file operations
 mod fs;
 
-// Phase 8: Desktop-Native Features (stubs)
+// Desktop-Native Features
 mod tray;
 mod hotkey;
 mod updater;
@@ -32,7 +32,25 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::new())
+        .setup(|app| {
+            // System tray
+            if let Err(e) = tray::setup_tray(app) {
+                log::warn!("[tray] Setup failed: {}", e);
+            }
+
+            // Global hotkey (Cmd/Ctrl+`)
+            if let Err(e) = hotkey::register_global_hotkey(app.handle()) {
+                log::warn!("[hotkey] Registration failed: {}", e);
+            }
+
+            // Auto-updater (background check)
+            updater::check_for_updates(app.handle().clone());
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::pty_spawn,
             commands::pty_write,

@@ -19,6 +19,8 @@
     "core:window:allow-set-position",
     "core:window:allow-start-dragging",
     "store:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "global-shortcut:default",
+    "updater:default"
   ]
 }
