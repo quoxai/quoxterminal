@@ -272,6 +272,11 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+.terminal-view__layout-btn:focus-visible {
+  outline: 1px solid rgba(56, 189, 248, 0.5);
+  outline-offset: 1px;
+}
+
 .terminal-view__layout-btn--active {
   background: rgba(56, 189, 248, 0.15);
   color: #38bdf8;
@@ -470,16 +475,6 @@
 .terminal-view__workspace-warning svg {
   color: #f59e0b;
   flex-shrink: 0;
-}
-
-/* ═══ Chat sidebar ═══ */
-
-.terminal-view__main--chat-open .terminal-view__body {
-  /* Let the body shrink to make room for chat */
-}
-
-.terminal-view__main--chat-open {
-  /* Already flex from .terminal-view__main */
 }
 
 /* Vim mode indicator */

@@ -5,6 +5,8 @@
  * SSH sessions can be auto-reconnected; local sessions show as informational.
  */
 
+import './SessionRestoreBanner.css';
+
 interface PreviousSession {
   paneId: string;
   mode: string;
@@ -41,24 +43,14 @@ export default function SessionRestoreBanner({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "8px 16px",
-        background: "rgba(16, 185, 129, 0.1)",
-        borderBottom: "1px solid rgba(16, 185, 129, 0.2)",
-        fontSize: 13,
-        color: "rgba(255, 255, 255, 0.8)",
-      }}
-    >
+    <div className="session-restore-banner">
       <svg
+        className="session-restore-banner__icon"
         width="16"
         height="16"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#10b981"
+        stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -66,38 +58,15 @@ export default function SessionRestoreBanner({
         <polyline points="1 4 1 10 7 10" />
         <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
       </svg>
-      <span style={{ flex: 1 }}>
+      <span className="session-restore-banner__text">
         Restore previous session? {parts.join(" and ")}
       </span>
       {sshSessions.length > 0 && (
-        <button
-          onClick={onRestore}
-          style={{
-            padding: "4px 12px",
-            background: "rgba(16, 185, 129, 0.15)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
-            borderRadius: 4,
-            color: "#10b981",
-            cursor: "pointer",
-            fontSize: 12,
-            fontWeight: 500,
-          }}
-        >
+        <button className="session-restore-banner__btn--restore" onClick={onRestore}>
           Reconnect
         </button>
       )}
-      <button
-        onClick={onDismiss}
-        style={{
-          padding: "4px 8px",
-          background: "transparent",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: 4,
-          color: "rgba(255, 255, 255, 0.5)",
-          cursor: "pointer",
-          fontSize: 12,
-        }}
-      >
+      <button className="session-restore-banner__btn--dismiss" onClick={onDismiss}>
         Dismiss
       </button>
     </div>

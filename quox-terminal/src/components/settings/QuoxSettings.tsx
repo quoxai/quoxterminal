@@ -11,7 +11,7 @@
  * All settings persist via Tauri Store (quox-terminal-settings.json).
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { storeGet, storeSet } from "../../lib/store";
 import { clearHostCache } from "../../services/bastionClient";
@@ -138,6 +138,14 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
   const apiKeyValid = config.anthropicApiKey
     ? config.anthropicApiKey.startsWith("sk-ant-") ? "valid" : "invalid"
     : null;
+
+  // Escape key closes settings
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

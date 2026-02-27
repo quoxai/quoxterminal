@@ -44,6 +44,19 @@ interface PreviousSessionState {
   savedAt: number;
 }
 
+// ── Layout labels (human-readable for accessibility) ──────────────────────
+
+const LAYOUT_LABELS: Record<LayoutPreset, string> = {
+  single: "Single pane",
+  "split-h": "Horizontal split",
+  "split-v": "Vertical split",
+  "main-side": "Main + side",
+  "side-main": "Side + main",
+  "top-split": "Top + bottom split",
+  "split-top": "Split top + bottom",
+  quad: "Quad grid",
+};
+
 // ── Layout icons (SVGs for the layout picker) ──────────────────────────────
 
 const LAYOUT_ICONS: Record<LayoutPreset, React.ReactNode> = {
@@ -454,9 +467,9 @@ export default function TerminalView() {
     let unlisten: (() => void) | null = null;
 
     getCurrentWindow()
-      .onCloseRequested(async (event) => {
+      .onCloseRequested((event) => {
         if (sessionCount > 0) {
-          const confirmed = await window.confirm(
+          const confirmed = window.confirm(
             `Close QuoxTerminal? ${sessionCount} active session${sessionCount !== 1 ? "s" : ""} will be terminated.`,
           );
           if (!confirmed) {
@@ -526,7 +539,8 @@ export default function TerminalView() {
                 key={l}
                 className={`terminal-view__layout-btn ${layout === l ? "terminal-view__layout-btn--active" : ""}`}
                 onClick={() => handleLayoutChange(l)}
-                title={l}
+                title={LAYOUT_LABELS[l]}
+                aria-label={LAYOUT_LABELS[l]}
               >
                 {LAYOUT_ICONS[l]}
               </button>
@@ -796,6 +810,7 @@ export default function TerminalView() {
         <div
           className="terminal-leave-overlay"
           onClick={() => setShowShortcuts(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowShortcuts(false); }}
         >
           <div
             className="terminal-leave-modal"

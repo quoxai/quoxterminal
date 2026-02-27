@@ -5,7 +5,7 @@
  * CPU/memory metrics, and click-to-connect functionality.
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFleetStatus } from '../../hooks/useFleetStatus';
 import type { FleetAgent } from '../../services/fleetService';
 import './FleetDashboard.css';

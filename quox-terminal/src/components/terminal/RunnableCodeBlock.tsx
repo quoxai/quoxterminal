@@ -153,8 +153,12 @@ export default function RunnableCodeBlock({
     setExecState('idle');
   }, []);
 
+  const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(code).catch(() => {});
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
   }, [code]);
 
   // Not a shell block -- render plain pre with copy button
@@ -172,7 +176,7 @@ export default function RunnableCodeBlock({
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
             </svg>
-            Copy
+            {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
       </div>
@@ -236,7 +240,7 @@ export default function RunnableCodeBlock({
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          Copy
+          {copied ? 'Copied!' : 'Copy'}
         </button>
 
         {/* Run button */}

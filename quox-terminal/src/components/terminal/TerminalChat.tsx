@@ -18,7 +18,7 @@
  *   sessionId: string|null   — focused pane's terminal session ID (for output context)
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { invoke } from '@tauri-apps/api/core';
@@ -457,13 +457,13 @@ export default function TerminalChat({
           )}
         </div>
         <div className="terminal-chat__header-right">
-          <button className="terminal-chat__header-btn" onClick={clearConversation} title="Clear chat">
+          <button className="terminal-chat__header-btn" onClick={clearConversation} title="Clear chat" aria-label="Clear chat history">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
           </button>
-          <button className="terminal-chat__header-btn" onClick={onClose} title="Close chat">
+          <button className="terminal-chat__header-btn" onClick={onClose} title="Close chat" aria-label="Close chat panel">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -563,7 +563,7 @@ export default function TerminalChat({
           />
         )}
 
-        {isProcessing && (
+        {isProcessing && !messages.some(m => m.role === 'assistant' && m.pending) && (
           <div className="terminal-chat__processing">Thinking...</div>
         )}
 
@@ -580,6 +580,7 @@ export default function TerminalChat({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Ask QuoxCode..."
+            aria-label="Chat message input"
             rows={1}
             disabled={isProcessing}
           />
