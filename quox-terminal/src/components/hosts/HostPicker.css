@@ -1,0 +1,288 @@
+/* HostPicker — Fleet host dropdown
+ * Quox brand: cyan #38bdf8, violet #a78bfa
+ */
+
+.host-picker {
+  position: relative;
+}
+
+.host-picker__trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.06);
+  color: rgba(56, 189, 248, 0.6);
+  font-size: 10px;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.host-picker__trigger:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.host-picker__trigger--open {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.host-picker__trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.host-picker__chevron {
+  transition: transform 0.15s;
+}
+
+.host-picker__trigger--open .host-picker__chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+.host-picker__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 280px;
+  max-width: 360px;
+  background: #0d1117;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 1px rgba(56, 189, 248, 0.2);
+  z-index: 500;
+  overflow: hidden;
+  animation: host-picker-appear 0.12s ease-out;
+}
+
+@keyframes host-picker-appear {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header */
+.host-picker__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.host-picker__header-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.host-picker__count {
+  font-size: 10px;
+  padding: 1px 5px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 8px;
+  color: rgba(56, 189, 248, 0.7);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.host-picker__refresh {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.host-picker__refresh:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.host-picker__spin {
+  animation: host-picker-spin 0.8s linear infinite;
+}
+
+@keyframes host-picker-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* List */
+.host-picker__list {
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.host-picker__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.host-picker__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(56, 189, 248, 0.15);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: host-picker-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+.host-picker__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px;
+  margin: 6px;
+  background: rgba(234, 108, 115, 0.06);
+  border: 1px solid rgba(234, 108, 115, 0.15);
+  border-radius: 4px;
+  color: rgba(234, 108, 115, 0.8);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  line-height: 1.5;
+}
+
+.host-picker__error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.host-picker__empty {
+  padding: 16px 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Groups */
+.host-picker__group {
+  padding: 2px 0;
+}
+
+.host-picker__group-name {
+  padding: 6px 10px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(56, 189, 248, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Host row */
+.host-picker__host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s;
+  text-align: left;
+}
+
+.host-picker__host:hover {
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.host-picker__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #686868;
+  flex-shrink: 0;
+}
+
+.host-picker__status-dot--online {
+  background: #38bdf8;
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.5);
+}
+
+.host-picker__status-dot--offline {
+  background: #ea6c73;
+  box-shadow: 0 0 4px rgba(234, 108, 115, 0.3);
+}
+
+.host-picker__hostname {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+.host-picker__ip {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.host-picker__os {
+  font-size: 9px;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  color: rgba(255, 255, 255, 0.2);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+/* Footer */
+.host-picker__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 4px;
+}
+
+.host-picker__manual-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: rgba(167, 139, 250, 0.6);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.host-picker__manual-btn:hover {
+  background: rgba(167, 139, 250, 0.08);
+  color: #a78bfa;
+}

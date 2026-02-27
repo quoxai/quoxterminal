@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { storeGet, storeSet } from "../../lib/store";
+import { clearHostCache } from "../../services/bastionClient";
 import "./QuoxSettings.css";
 
 interface QuoxSettingsProps {
@@ -78,6 +79,8 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
     const { anthropicApiKey, ...rest } = config;
     await storeSet(STORE_KEY, rest);
     await storeSet(API_KEY_STORE, anthropicApiKey);
+    // Clear host cache so the host picker refreshes with new connection details
+    clearHostCache();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }, [config]);

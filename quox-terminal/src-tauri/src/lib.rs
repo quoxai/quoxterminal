@@ -55,6 +55,9 @@ pub fn run() {
             commands::ssh_list_keys,
             commands::ssh_session_exists,
             commands::ssh_get_output,
+            // Bastion / Fleet API proxy commands
+            commands::bastion_list_hosts,
+            commands::bastion_fleet_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

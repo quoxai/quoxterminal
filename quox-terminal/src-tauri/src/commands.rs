@@ -371,3 +371,140 @@ pub async fn ssh_get_output(
         .ok_or_else(|| format!("SSH session not found: {}", session_id))?;
     Ok(session.read_output(chars))
 }
+
+// ── Bastion / Fleet API Proxy Commands ───────────────────────────────────────
+
+/// Host information from the bastion API.
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct FleetHost {
+    pub hostname: String,
+    pub ip: Option<String>,
+    pub group: Option<String>,
+    pub status: Option<String>,
+    #[serde(rename = "lastSeen")]
+    pub last_seen: Option<String>,
+    pub os: Option<String>,
+    #[serde(rename = "cpuCount")]
+    pub cpu_count: Option<u32>,
+    #[serde(rename = "memoryTotal")]
+    pub memory_total: Option<u64>,
+}
+
+/// Fetch host list from the bastion/collector API.
+/// Reads connection config from the Tauri store file.
+#[tauri::command]
+pub async fn bastion_list_hosts(app_handle: AppHandle) -> Result<Vec<FleetHost>, String> {
+    use tauri::Manager;
+
+    let store_path = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?
+        .join("quox-terminal-settings.json");
+
+    if !store_path.exists() {
+        return Err("No settings configured. Open Settings to configure your Quox connection.".to_string());
+    }
+
+    let content = std::fs::read_to_string(&store_path)
+        .map_err(|e| format!("Failed to read settings: {}", e))?;
+    let parsed: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse settings: {}", e))?;
+
+    let config = parsed.get("quox-connection-config")
+        .ok_or("No connection config found. Open Settings to configure your Quox connection.")?;
+
+    let collector_url = config.get("collectorUrl")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if collector_url.is_empty() {
+        return Err("No Collector URL configured. Open Settings to set it up.".to_string());
+    }
+
+    let token = config.get("collectorToken")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let url = format!("{}/api/v1/hosts", collector_url.trim_end_matches('/'));
+
+    let client = reqwest::Client::new();
+    let mut req = client.get(&url);
+    if !token.is_empty() {
+        req = req.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let resp = req
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to reach collector: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Collector returned status {}", resp.status()));
+    }
+
+    let hosts: Vec<FleetHost> = resp.json().await
+        .map_err(|e| format!("Failed to parse host list: {}", e))?;
+
+    Ok(hosts)
+}
+
+/// Fetch fleet summary from the bastion/collector API.
+#[tauri::command]
+pub async fn bastion_fleet_summary(app_handle: AppHandle) -> Result<serde_json::Value, String> {
+    use tauri::Manager;
+
+    let store_path = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?
+        .join("quox-terminal-settings.json");
+
+    if !store_path.exists() {
+        return Err("No settings configured.".to_string());
+    }
+
+    let content = std::fs::read_to_string(&store_path)
+        .map_err(|e| format!("Failed to read settings: {}", e))?;
+    let parsed: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse settings: {}", e))?;
+
+    let config = parsed.get("quox-connection-config")
+        .ok_or("No connection config found.")?;
+
+    let collector_url = config.get("collectorUrl")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if collector_url.is_empty() {
+        return Err("No Collector URL configured.".to_string());
+    }
+
+    let token = config.get("collectorToken")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let url = format!("{}/api/v1/fleet/summary", collector_url.trim_end_matches('/'));
+
+    let client = reqwest::Client::new();
+    let mut req = client.get(&url);
+    if !token.is_empty() {
+        req = req.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let resp = req
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to reach collector: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Collector returned status {}", resp.status()));
+    }
+
+    let summary: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse fleet summary: {}", e))?;
+
+    Ok(summary)
+}

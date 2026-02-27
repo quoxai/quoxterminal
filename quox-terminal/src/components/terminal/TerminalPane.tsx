@@ -3,6 +3,11 @@
  *
  * Renders a compact header with session type indicator and wraps TerminalEmbed.
  * Supports both local PTY sessions and SSH remote sessions.
+ *
+ * When a collector/bastion is configured in Settings, the pane header shows a
+ * "Connect" dropdown with the fleet host list (grouped by category). Selecting
+ * a host auto-connects via SSH through the configured bastion. A "Manual SSH..."
+ * fallback opens the full SSH connection dialog.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -12,9 +17,12 @@ import ErrorNotificationBar from "./ErrorNotificationBar";
 import SshConnectDialog, {
   type SshConnectionConfig,
 } from "./SshConnectDialog";
+import HostPicker from "../hosts/HostPicker";
+import type { FleetHost } from "../../services/bastionClient";
 import useVimMode from "../../hooks/useVimMode";
 import { useTerminalErrorDetection } from "../../hooks/useTerminalErrorDetection";
 import { sshConnect, sshDisconnect } from "../../lib/tauri-ssh";
+import { storeGet } from "../../lib/store";
 import "./TerminalPane.css";
 
 interface TerminalPaneProps {
@@ -131,7 +139,7 @@ export default function TerminalPane({
     [signalActivity],
   );
 
-  // SSH connection handler
+  // SSH connection handler (manual dialog)
   const handleSshConnect = useCallback(
     async (config: SshConnectionConfig) => {
       setSshConnecting(true);
@@ -172,6 +180,51 @@ export default function TerminalPane({
     [paneId, onModeChange, onSessionId, onConnect],
   );
 
+  // Fleet host selection — auto-connect using bastion defaults from settings
+  const handleHostSelect = useCallback(
+    async (host: FleetHost) => {
+      setSshConnecting(true);
+      setSshError(null);
+      try {
+        // Load bastion defaults from settings
+        const cfg = await storeGet<{
+          bastionHost?: string;
+          bastionPort?: string;
+          bastionUser?: string;
+          defaultSshUser?: string;
+        }>("quox-connection-config");
+
+        const user = cfg?.defaultSshUser || "root";
+        const sid = await sshConnect({
+          host: host.hostname,
+          port: 22,
+          user,
+          authMethod: "key",
+          // Bastion from settings — transparent to user
+          bastionHost: cfg?.bastionHost || undefined,
+          bastionPort: cfg?.bastionPort
+            ? parseInt(cfg.bastionPort)
+            : undefined,
+          bastionUser: cfg?.bastionUser || undefined,
+        });
+
+        if (onModeChange) {
+          onModeChange(paneId, "ssh", `${user}@${host.hostname}`);
+        }
+        onSessionId(paneId, sid);
+        onConnect(paneId);
+        setSshConnecting(false);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSshError(msg);
+        setSshConnecting(false);
+        // If auto-connect fails, open the manual dialog pre-filled
+        setShowSshDialog(true);
+      }
+    },
+    [paneId, onModeChange, onSessionId, onConnect],
+  );
+
   // Session type label
   const sessionLabel =
     paneMode === "ssh" ? paneHostId || "SSH" : "Local";
@@ -207,32 +260,32 @@ export default function TerminalPane({
           {sessionLabel}
         </span>
 
-        {/* SSH connect button — shown when in local mode */}
+        {/* Host picker / SSH connect — shown when in local mode */}
         {paneMode === "local" && (
-          <button
-            className="terminal-pane__ssh-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowSshDialog(true);
-            }}
-            title="SSH Connect"
+          <HostPicker
+            onSelectHost={handleHostSelect}
+            onManualSsh={() => setShowSshDialog(true)}
+            disabled={sshConnecting}
+          />
+        )}
+
+        {/* Connecting indicator */}
+        {sshConnecting && paneMode === "local" && (
+          <span className="terminal-pane__connecting">
+            <span className="terminal-pane__connecting-spinner" />
+            Connecting...
+          </span>
+        )}
+
+        {/* SSH error inline */}
+        {sshError && paneMode === "local" && !showSshDialog && (
+          <span
+            className="terminal-pane__ssh-error"
+            title={sshError}
+            onClick={() => setSshError(null)}
           >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M15 3h6v6" />
-              <path d="M10 14L21 3" />
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            </svg>
-            SSH
-          </button>
+            Failed
+          </span>
         )}
 
         {vimEnabled && (
