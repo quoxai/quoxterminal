@@ -1,8 +1,95 @@
 use portable_pty::{CommandBuilder, MasterPty, PtySize};
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter};
+
+// ── Shell integration scripts ────────────────────────────────────────────────
+//
+// These create a colourful, informative prompt that shows:
+//   quox ~/current/path (git-branch) ❯
+//
+// - "quox" in bold green (app identity)
+// - working directory in blue
+// - git branch in yellow (when inside a repo)
+// - ❯ arrow: green on success, red on error
+//
+// Users can opt out by setting QUOX_NO_PROMPT=1 in their environment.
+
+/// Zsh integration — loaded via ZDOTDIR
+const ZSH_INTEGRATION: &str = r#"# QuoxTerminal — zsh prompt integration
+# Restore ZDOTDIR and source user's original config
+ZDOTDIR="$HOME"
+[[ -f "$HOME/.zshenv" ]] && source "$HOME/.zshenv"
+[[ -f "$HOME/.zshrc" ]] && source "$HOME/.zshrc"
+
+# Skip custom prompt if user opts out
+[[ -n "$QUOX_NO_PROMPT" ]] && return
+
+# ── QuoxTerminal prompt ──
+_quox_git_info() {
+  local ref
+  ref=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+  [[ -n "$ref" ]] && echo " %F{yellow}($ref)%f"
+}
+
+setopt PROMPT_SUBST
+PROMPT='%B%F{green}quox%f%b %F{blue}%~%f$(_quox_git_info) %F{%(?.green.red)}❯%f '
+RPROMPT=''
+"#;
+
+/// Bash integration — loaded via --rcfile
+const BASH_INTEGRATION: &str = r#"# QuoxTerminal — bash prompt integration
+# Source user's original config
+[[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
+
+# Skip custom prompt if user opts out
+[[ -n "$QUOX_NO_PROMPT" ]] && return 2>/dev/null || true
+
+# ── QuoxTerminal prompt ──
+__quox_prompt() {
+  local ec=$?
+  local green='\[\e[1;32m\]'
+  local blue='\[\e[0;34m\]'
+  local yellow='\[\e[0;33m\]'
+  local red='\[\e[0;31m\]'
+  local reset='\[\e[0m\]'
+
+  local gb
+  gb=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+  local gp=""
+  [[ -n "$gb" ]] && gp=" ${yellow}(${gb})${reset}"
+
+  local ac=${green}
+  [[ $ec -ne 0 ]] && ac=${red}
+
+  PS1="${green}quox${reset} ${blue}\w${reset}${gp} ${ac}❯${reset} "
+}
+PROMPT_COMMAND='__quox_prompt'
+"#;
+
+/// Create shell integration scripts in a temp directory.
+/// Returns the base directory path.
+fn ensure_shell_integration() -> Result<PathBuf, String> {
+    let mut dir = std::env::temp_dir();
+    dir.push("quox-terminal-shell");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create shell integration dir: {}", e))?;
+
+    // Zsh needs its own ZDOTDIR with a .zshrc
+    let zsh_dir = dir.join("zsh");
+    std::fs::create_dir_all(&zsh_dir)
+        .map_err(|e| format!("Failed to create zsh dir: {}", e))?;
+    std::fs::write(zsh_dir.join(".zshrc"), ZSH_INTEGRATION)
+        .map_err(|e| format!("Failed to write zsh integration: {}", e))?;
+
+    // Bash uses --rcfile pointing to a single file
+    std::fs::write(dir.join("bashrc"), BASH_INTEGRATION)
+        .map_err(|e| format!("Failed to write bash integration: {}", e))?;
+
+    Ok(dir)
+}
 
 /// Ring buffer for terminal output, used by AI context builder
 pub struct OutputRingBuffer {
@@ -98,9 +185,32 @@ impl PtySession {
 
         // Set TERM for proper color support
         cmd.env("TERM", "xterm-256color");
+        cmd.env("TERM_PROGRAM", "QuoxTerminal");
+        cmd.env("QUOX_TERMINAL", "1");
 
         // Remove env vars from parent that could confuse child shells
         cmd.env_remove("CLAUDECODE");
+
+        // Load custom prompt integration (colourful prompt with git info)
+        if let Ok(integration_dir) = ensure_shell_integration() {
+            if shell.contains("zsh") {
+                cmd.env(
+                    "ZDOTDIR",
+                    integration_dir
+                        .join("zsh")
+                        .to_string_lossy()
+                        .as_ref(),
+                );
+            } else if shell.contains("bash") {
+                cmd.arg("--rcfile");
+                cmd.arg(
+                    integration_dir
+                        .join("bashrc")
+                        .to_string_lossy()
+                        .as_ref(),
+                );
+            }
+        }
 
         let child = pair
             .slave
