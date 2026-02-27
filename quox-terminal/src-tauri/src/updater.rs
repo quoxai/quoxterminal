@@ -4,7 +4,7 @@
 /// Emits a frontend event when an update is available so the UI
 /// can show a notification banner.
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_updater::UpdaterExt;
 
 /// Information about an available update.
