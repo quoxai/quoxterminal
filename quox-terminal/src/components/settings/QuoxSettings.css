@@ -1,42 +1,51 @@
-/* QuoxSettings — Settings panel styling
+/* QuoxSettings — Full-page settings view
  * Quox brand: cyan #38bdf8, violet #a78bfa
+ * Matches QuoxCORE CoreIntegrations pattern: sidebar + content + embedded terminal
  */
+
+/* ═══ Overlay ═══ */
 
 .quox-settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 900;
   display: flex;
-  justify-content: flex-end;
-  backdrop-filter: blur(2px);
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
 }
 
 .quox-settings {
-  width: 420px;
-  max-width: 90vw;
-  height: 100%;
+  width: 90vw;
+  max-width: 860px;
+  height: 85vh;
+  max-height: 700px;
   background: #0d1117;
-  border-left: 1px solid rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  animation: settings-slide-in 0.2s ease-out;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+  animation: settings-fade-in 0.2s ease-out;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 1px rgba(56, 189, 248, 0.2);
+  overflow: hidden;
 }
 
-@keyframes settings-slide-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+@keyframes settings-fade-in {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-/* Header */
+/* ═══ Header ═══ */
+
 .quox-settings__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid rgba(56, 189, 248, 0.08);
   flex-shrink: 0;
+  background: linear-gradient(180deg, #0f1520 0%, #0d1117 100%);
 }
 
 .quox-settings__header-left {
@@ -45,9 +54,15 @@
   gap: 10px;
 }
 
+.quox-settings__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .quox-settings__logo {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
 }
 
@@ -77,23 +92,93 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* Body */
-.quox-settings__body {
+/* ═══ Layout: sidebar + content ═══ */
+
+.quox-settings__layout {
+  display: flex;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ═══ Sidebar ═══ */
+
+.quox-settings__sidebar {
+  width: 170px;
+  min-width: 170px;
+  padding: 12px 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.15);
   overflow-y: auto;
-  padding: 16px;
+  flex-shrink: 0;
+}
+
+.quox-settings__sidebar-group {
+  padding: 8px 16px 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(56, 189, 248, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.quox-settings__sidebar-item {
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-left: 2px solid transparent;
+}
+
+.quox-settings__sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.quox-settings__sidebar-item--active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.04);
+  border-left-color: #38bdf8;
+}
+
+/* ═══ Content ═══ */
+
+.quox-settings__content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
+  scroll-behavior: smooth;
 }
 
-/* Sections */
+.quox-settings__content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.quox-settings__content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+}
+
+/* ═══ Sections ═══ */
+
 .quox-settings__section {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.quox-settings__section:last-of-type {
+.quox-settings__section:last-child {
   border-bottom: none;
 }
 
@@ -119,10 +204,81 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.35);
   line-height: 1.5;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-/* Fields */
+/* ═══ Cards ═══ */
+
+.quox-settings__card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.quox-settings__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.quox-settings__card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quox-settings__card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.quox-settings__card-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.quox-settings__card-status {
+  flex-shrink: 0;
+}
+
+.quox-settings__card-body {
+  padding: 12px 14px;
+}
+
+/* ═══ Badges ═══ */
+
+.quox-settings__badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quox-settings__badge--ok {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.quox-settings__badge--missing {
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ═══ Fields ═══ */
+
 .quox-settings__field {
   display: flex;
   flex-direction: column;
@@ -152,7 +308,8 @@
   letter-spacing: 0.02em;
 }
 
-.quox-settings__field input {
+.quox-settings__field input,
+.quox-settings__card-body input {
   height: 32px;
   padding: 0 10px;
   background: rgba(255, 255, 255, 0.04);
@@ -166,16 +323,18 @@
   width: 100%;
 }
 
-.quox-settings__field input:focus {
+.quox-settings__field input:focus,
+.quox-settings__card-body input:focus {
   border-color: rgba(56, 189, 248, 0.4);
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
 }
 
-.quox-settings__field input::placeholder {
+.quox-settings__field input::placeholder,
+.quox-settings__card-body input::placeholder {
   color: rgba(255, 255, 255, 0.2);
 }
 
-/* Input with test button */
+/* Input row with test button */
 .quox-settings__input-row {
   display: flex;
   gap: 6px;
@@ -184,6 +343,75 @@
 .quox-settings__input-row input {
   flex: 1;
 }
+
+/* Input with eye toggle */
+.quox-settings__input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.quox-settings__input-wrapper {
+  display: flex;
+  position: relative;
+}
+
+.quox-settings__input-wrapper input {
+  flex: 1;
+  padding-right: 36px;
+}
+
+.quox-settings__eye-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.quox-settings__eye-btn:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* API key validation status */
+.quox-settings__key-status {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.quox-settings__key-status--valid {
+  color: rgba(56, 189, 248, 0.7);
+}
+
+.quox-settings__key-status--invalid {
+  color: rgba(234, 108, 115, 0.7);
+}
+
+/* External link */
+.quox-settings__link {
+  font-size: 11px;
+  color: rgba(167, 139, 250, 0.6);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.quox-settings__link:hover {
+  color: #a78bfa;
+  text-decoration: underline;
+}
+
+/* ═══ Test button ═══ */
 
 .quox-settings__test-btn {
   height: 32px;
@@ -223,34 +451,50 @@
   background: rgba(234, 108, 115, 0.08);
 }
 
-/* Footer */
-.quox-settings__footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
-}
+/* ═══ Terminal embed (Claude Subscription) ═══ */
 
-.quox-settings__about-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 11px;
+.quox-settings__terminal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 6px;
+  background: rgba(167, 139, 250, 0.08);
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 500;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: all 0.15s;
+  margin-bottom: 10px;
 }
 
-.quox-settings__about-btn:hover {
-  color: rgba(255, 255, 255, 0.6);
+.quox-settings__terminal-btn:hover {
+  background: rgba(167, 139, 250, 0.14);
+  border-color: rgba(167, 139, 250, 0.3);
 }
+
+.quox-settings__terminal-container {
+  height: 340px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(167, 139, 250, 0.12);
+  margin-bottom: 8px;
+}
+
+.quox-settings__terminal-hint {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 1.4;
+}
+
+/* ═══ Save button ═══ */
 
 .quox-settings__save-btn {
-  padding: 7px 18px;
+  padding: 6px 16px;
   border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: 5px;
   background: rgba(56, 189, 248, 0.12);
@@ -272,46 +516,47 @@
   background: rgba(167, 139, 250, 0.12);
 }
 
-/* About panel */
+/* ═══ About section ═══ */
+
 .quox-settings__about {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 16px;
+  padding: 24px 16px;
   text-align: center;
 }
 
 .quox-settings__about-logo {
-  width: 128px;
-  height: 128px;
+  width: 100px;
+  height: 100px;
   object-fit: contain;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .quox-settings__about-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 4px;
+  margin: 0 0 4px;
 }
 
 .quox-settings__about-version {
   font-size: 12px;
   color: #38bdf8;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .quox-settings__about-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
   line-height: 1.6;
-  max-width: 320px;
-  margin-bottom: 16px;
+  max-width: 360px;
+  margin: 0 0 12px;
 }
 
 .quox-settings__about-links {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .quox-settings__about-link {
@@ -320,19 +565,8 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-.quox-settings__back-btn {
-  padding: 7px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  cursor: pointer;
-  transition: all 0.15s;
-}
+/* ═══ Settings terminal xterm overrides ═══ */
 
-.quox-settings__back-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
+.settings-terminal .xterm {
+  padding: 6px 4px;
 }
