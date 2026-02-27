@@ -420,6 +420,26 @@ export default function TerminalView() {
             {sessionCount > 0 ? "Active" : "Idle"}
           </div>
 
+          {/* AI Chat toggle */}
+          <button
+            className={`terminal-view__chat-btn ${chatOpen ? "terminal-view__chat-btn--active" : ""}`}
+            onClick={() => setChatOpen((prev) => !prev)}
+            title="AI Chat (Ctrl+Shift+C)"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+
           {/* Settings gear */}
           <button
             className="terminal-view__settings-btn"

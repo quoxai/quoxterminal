@@ -56,6 +56,36 @@
   gap: 12px;
 }
 
+/* Chat toggle button */
+.terminal-view__chat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.terminal-view__chat-btn:hover {
+  background: rgba(167, 139, 250, 0.1);
+  color: #a78bfa;
+}
+
+.terminal-view__chat-btn--active {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.2);
+}
+
+.terminal-view__chat-btn--active:hover {
+  background: rgba(167, 139, 250, 0.2);
+}
+
 .terminal-view__settings-btn {
   display: flex;
   align-items: center;
