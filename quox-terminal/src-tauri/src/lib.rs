@@ -22,6 +22,9 @@ mod hotkey;
 mod updater;
 mod shell_integration;
 
+// Memory bridge — local-only entity/session/error storage
+mod memory;
+
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -64,6 +67,14 @@ pub fn run() {
             // Bastion / Fleet API proxy commands
             commands::bastion_list_hosts,
             commands::bastion_fleet_summary,
+            // Memory bridge commands (local-only storage)
+            memory::commands::collector_store_entity,
+            memory::commands::collector_touch_entity,
+            memory::commands::collector_extract_entities,
+            memory::commands::collector_add_open_loop,
+            memory::commands::collector_add_learned_item,
+            memory::commands::collector_record_decision,
+            memory::commands::collector_set_focus,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

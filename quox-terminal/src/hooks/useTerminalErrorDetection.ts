@@ -13,6 +13,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getTerminalOutput } from '../lib/tauri-pty';
 import { detectTerminalError, type DetectedError } from '../utils/terminalErrorDetector';
+import { extractEntitiesFromOutput, recordDetectedError } from '../services/terminalMemoryBridge';
 
 const DEBOUNCE_MS = 500;
 const AUTO_DISMISS_MS = 15000;
@@ -99,9 +100,19 @@ export function useTerminalErrorDetection(
       lastOutputHashRef.current = outputKey;
 
       const clean = stripAnsi(rawOutput);
+
+      // Extract entities from clean output (hosts, IPs, services, etc.)
+      extractEntitiesFromOutput(clean).catch(() => {});
+
       const error = detectTerminalError(clean);
 
       if (!error || !mountedRef.current) return;
+
+      // Record detected error in memory bridge
+      recordDetectedError(
+        { errorType: error.errorType, errorLine: error.errorLine },
+        null,
+      ).catch(() => {});
 
       // Check suppression by error type
       const now = Date.now();

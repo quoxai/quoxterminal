@@ -20,6 +20,7 @@ import { TERM_THEME } from "./TerminalEmbed";
 import { TERMINAL_LIMITS } from "../../config/terminalConfig";
 import { sshWrite, sshResize, sshGetOutput } from "../../lib/tauri-ssh";
 import { onPtyOutput, onPtyExit } from "../../lib/tauri-pty";
+import { trackSessionStart, trackSessionEnd } from "../../services/terminalMemoryBridge";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 interface ScrollRef {
@@ -182,6 +183,7 @@ export default function SshTerminalEmbed({
         term.write(
           `\r\n\x1b[33m[SSH session ended (exit code ${code})]\x1b[0m\r\n`,
         );
+        trackSessionEnd(sessionId).catch(() => {});
         if (onDisconnectRef.current) onDisconnectRef.current(code);
       });
       unlistenExitRef.current = unlistenExit;
@@ -206,6 +208,9 @@ export default function SshTerminalEmbed({
 
       term.focus();
       if (onConnectRef.current) onConnectRef.current();
+
+      // Track SSH session in memory bridge
+      trackSessionStart(null, sessionId, 'ssh').catch(() => {});
     };
 
     wireSession();

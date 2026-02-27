@@ -35,6 +35,7 @@ import {
   onPtyOutput,
   onPtyExit,
 } from "../../lib/tauri-pty";
+import { trackSessionStart, trackSessionEnd } from "../../services/terminalMemoryBridge";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 export const TERM_THEME = {
@@ -217,6 +218,7 @@ export default function TerminalEmbed({
             `\r\n\x1b[33m[Session ended (exit code ${code})]\x1b[0m\r\n`,
           );
           setStatus("disconnected");
+          trackSessionEnd(sid).catch(() => {});
           sessionIdRef.current = null;
           if (onDisconnectRef.current) onDisconnectRef.current(code);
         });
@@ -244,6 +246,9 @@ export default function TerminalEmbed({
         setStatus("connected");
         term.focus();
         if (onConnectRef.current) onConnectRef.current();
+
+        // Track session in memory bridge
+        trackSessionStart(null, sid, 'local').catch(() => {});
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         term.write(`\r\n\x1b[31m[Failed to spawn shell: ${message}]\x1b[0m\r\n`);
