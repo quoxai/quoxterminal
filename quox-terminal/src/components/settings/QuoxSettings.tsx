@@ -113,8 +113,8 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
         <div className="quox-settings__header">
           <div className="quox-settings__header-left">
             <img
-              src="/quox-logo.png"
-              alt="Quox"
+              src="/quox-q-icon.png"
+              alt="Q"
               className="quox-settings__logo"
             />
             <span className="quox-settings__title">Settings</span>

@@ -353,8 +353,8 @@ export default function TerminalView() {
       <div className="terminal-view__header">
         <div className="terminal-view__title">
           <img
-            src="/quox-logo.png"
-            alt="Quox"
+            src="/quox-q-icon.png"
+            alt="Q"
             className="terminal-view__logo"
           />
           QuoxTerminal
