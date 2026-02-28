@@ -20,6 +20,7 @@ import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
 import FleetDashboard from "../components/hosts/FleetDashboard";
+import ToolPalette from "../components/tools/ToolPalette";
 import SessionRestoreBanner from "../components/terminal/SessionRestoreBanner";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
@@ -140,6 +141,7 @@ export default function TerminalView() {
   const [showSettings, setShowSettings] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -275,6 +277,9 @@ export default function TerminalView() {
           break;
         case "toggleVim":
           setVimEnabled((prev) => !prev);
+          break;
+        case "toggleTools":
+          setToolsOpen((prev) => !prev);
           break;
       }
 
@@ -604,6 +609,26 @@ export default function TerminalView() {
             </svg>
           </button>
 
+          {/* Tool Palette toggle */}
+          <button
+            className={`terminal-view__tools-btn ${toolsOpen ? "terminal-view__tools-btn--active" : ""}`}
+            onClick={() => setToolsOpen((prev) => !prev)}
+            title="Tool Palette (Ctrl+Shift+T)"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </button>
+
           {/* Settings gear */}
           <button
             className="terminal-view__settings-btn"
@@ -732,7 +757,7 @@ export default function TerminalView() {
       )}
 
       {/* Main content — terminal grid + optional chat sidebar */}
-      <div className={`terminal-view__main ${chatOpen || fleetOpen ? "terminal-view__main--chat-open" : ""}`}>
+      <div className={`terminal-view__main ${chatOpen || fleetOpen || toolsOpen ? "terminal-view__main--chat-open" : ""}`}>
         <div className="terminal-view__body" data-layout={layout}>
           {panes.map((pane) => (
             <TerminalPane
@@ -782,6 +807,22 @@ export default function TerminalView() {
               if (ref?.current) {
                 ref.current(host);
               }
+            }}
+          />
+        )}
+
+        {/* Tool Palette sidebar */}
+        {toolsOpen && (
+          <ToolPalette
+            onClose={() => setToolsOpen(false)}
+            onExecute={(command) => {
+              const pane = panes.find((p) => p.id === focusedPaneId);
+              if (pane?.sessionId) {
+                import("../lib/tauri-pty").then(({ ptyWrite }) => {
+                  ptyWrite(pane.sessionId!, command + "\n");
+                });
+              }
+              setToolsOpen(false);
             }}
           />
         )}

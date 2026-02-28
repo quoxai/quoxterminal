@@ -89,6 +89,14 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
         action: "clearTerminal",
         description: "Clear focused terminal",
       },
+      {
+        keys: [modKey, "Shift", "T"],
+        ctrl: true,
+        shift: true,
+        key: "T",
+        action: "toggleTools",
+        description: "Toggle tool palette",
+      },
     ],
   },
   {
