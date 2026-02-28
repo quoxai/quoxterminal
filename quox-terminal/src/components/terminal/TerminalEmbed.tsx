@@ -342,7 +342,7 @@ export default function TerminalEmbed({
       } catch (_) {}
     });
 
-    // ResizeObserver for auto-fitting
+    // ResizeObserver for auto-fitting (debounced to avoid flooding PTY with resize calls)
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new ResizeObserver(() => {
       const el = containerRef.current;
@@ -350,9 +350,9 @@ export default function TerminalEmbed({
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         try {
-          if (fitAddonRef.current) fitAddonRef.current.fit();
+          if (fitAddonRef.current && termRef.current) fitAddonRef.current.fit();
         } catch (_) {}
-      }, 16);
+      }, 150);
     });
     observer.observe(containerRef.current);
     resizeObserverRef.current = observer;

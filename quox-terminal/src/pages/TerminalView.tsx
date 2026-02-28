@@ -11,7 +11,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import useTerminalWorkspace, {
   LAYOUTS,
-  getSessionsToLose,
   type LayoutPreset,
   type WorkspaceState,
 } from "../hooks/useTerminalWorkspace";
@@ -180,13 +179,6 @@ export default function TerminalView() {
       const ws = workspaces.find((w) => w.id === wsId);
       const activeSessions = ws?.panes.filter((p) => p.sessionId) || [];
 
-      if (activeSessions.length > 0) {
-        const confirmed = window.confirm(
-          `Close workspace with ${activeSessions.length} active session${activeSessions.length > 1 ? "s" : ""}?`,
-        );
-        if (!confirmed) return;
-      }
-
       // Kill all sessions in the workspace (local PTY + SSH)
       activeSessions.forEach((p) => {
         if (p.sessionId) {
@@ -327,18 +319,6 @@ export default function TerminalView() {
 
   const handlePaneClose = useCallback(
     (paneId: string) => {
-      // Switching to "single" removes panes at index 1+.
-      // getSessionsToLose counts connected panes that will be removed.
-      const sessionsToLose = getSessionsToLose(panes, "single");
-
-      // Ask BEFORE killing anything
-      if (sessionsToLose > 0) {
-        const confirmed = window.confirm(
-          `This will close ${sessionsToLose} active session${sessionsToLose > 1 ? "s" : ""}. Continue?`,
-        );
-        if (!confirmed) return;
-      }
-
       // Kill sessions of panes that will be removed (index 1+)
       panes.slice(1).forEach((p) => {
         if (p.sessionId) {
@@ -476,16 +456,9 @@ export default function TerminalView() {
     let unlisten: (() => void) | null = null;
 
     getCurrentWindow()
-      .onCloseRequested((event) => {
+      .onCloseRequested(() => {
         if (sessionCount > 0) {
-          const confirmed = window.confirm(
-            `Close QuoxTerminal? ${sessionCount} active session${sessionCount !== 1 ? "s" : ""} will be terminated.`,
-          );
-          if (!confirmed) {
-            event.preventDefault();
-            return;
-          }
-          // Save session state before closing
+          // Save session state and clean up before closing
           saveSessionState(workspaces);
           killAllSessions(workspaces);
         }
@@ -506,20 +479,17 @@ export default function TerminalView() {
 
   const handleLayoutChange = useCallback(
     (newLayout: LayoutPreset) => {
-      const sessionsToLose = getSessionsToLose(panes, newLayout);
-      if (sessionsToLose > 0) {
-        const confirmed = window.confirm(
-          `Switching layout will close ${sessionsToLose} active session${sessionsToLose > 1 ? "s" : ""}. Continue?`,
-        );
-        if (!confirmed) return;
-
-        // Kill PTYs of panes that will be removed
-        const newCount =
-          LAYOUTS[newLayout] || 1;
-        panes.slice(newCount).forEach((p) => {
-          if (p.sessionId) ptyKill(p.sessionId).catch(() => {});
-        });
-      }
+      // Kill sessions of panes that will be removed by the layout change
+      const newCount = LAYOUTS[newLayout] || 1;
+      panes.slice(newCount).forEach((p) => {
+        if (p.sessionId) {
+          if (p.mode === "ssh") {
+            sshDisconnect(p.sessionId).catch(() => {});
+          } else {
+            ptyKill(p.sessionId).catch(() => {});
+          }
+        }
+      });
       setLayout(newLayout);
     },
     [panes, setLayout],

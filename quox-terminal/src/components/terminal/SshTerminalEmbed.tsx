@@ -152,15 +152,15 @@ export default function SshTerminalEmbed({
       try { fitAddon.fit(); } catch (_) {}
     });
 
-    // ResizeObserver
+    // ResizeObserver (debounced to avoid flooding SSH with resize calls)
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new ResizeObserver(() => {
       const el = containerRef.current;
       if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        try { fitAddonRef.current?.fit(); } catch (_) {}
-      }, 16);
+        try { if (fitAddonRef.current && termRef.current) fitAddonRef.current.fit(); } catch (_) {}
+      }, 150);
     });
     observer.observe(containerRef.current);
     resizeObserverRef.current = observer;
