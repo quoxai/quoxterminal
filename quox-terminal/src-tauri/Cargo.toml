@@ -2,7 +2,7 @@
 name = "quox-terminal"
 version = "0.1.0"
 description = "QuoxTerminal Desktop — native terminal with AI integration"
-authors = ["AdaminX"]
+authors = ["Quox Ltd"]
 edition = "2021"
 
 [lib]

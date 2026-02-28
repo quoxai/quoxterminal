@@ -77,7 +77,7 @@ QuoxTerminal is built around Unix shells (zsh, bash, fish). Windows shells (Powe
 
 ### Download
 
-Grab the latest release from [GitHub Releases](https://github.com/AdaminX/quoxterminal/releases):
+Grab the latest release from [GitHub Releases](https://github.com/quoxai/quoxterminal/releases):
 
 - **macOS** — `.dmg` (Apple Silicon or Intel)
 - **Linux** — `.deb` (Debian/Ubuntu) or `.AppImage` (universal)
@@ -230,5 +230,5 @@ MIT
 ---
 
 <p align="center">
-  Built by <a href="https://github.com/AdaminX">AdaminX</a>
+  Built by <a href="https://github.com/quoxai">Quox Ltd</a>
 </p>
