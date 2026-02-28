@@ -35,6 +35,18 @@ export interface ToolDefinition {
   params?: ToolParam[];
   requiresSsh?: boolean;
   icon?: string;
+  tags?: string[];
+  contextMatch?: {
+    mode?: "local" | "ssh";
+    hostPattern?: string;
+  };
+}
+
+export interface PaneContext {
+  mode: string;
+  hostId: string;
+  connected: boolean;
+  hasError?: boolean;
 }
 
 const CATEGORY_LABELS: Record<ToolCategory, string> = {
@@ -95,6 +107,7 @@ const TOOLS: ToolDefinition[] = [
     category: "ops",
     command: "quox",
     args: ["deploy"],
+    tags: ["remote", "ops"],
     params: [
       {
         name: "service",
@@ -118,6 +131,7 @@ const TOOLS: ToolDefinition[] = [
     category: "ops",
     command: "quox",
     args: ["logs"],
+    tags: ["remote", "ops"],
     params: [
       {
         name: "service",
@@ -141,6 +155,7 @@ const TOOLS: ToolDefinition[] = [
     category: "ops",
     command: "quox",
     args: ["restart"],
+    tags: ["remote", "ops"],
     params: [
       {
         name: "service",
@@ -164,6 +179,8 @@ const TOOLS: ToolDefinition[] = [
     category: "ops",
     command: "bastion",
     args: ["exec"],
+    tags: ["remote", "ssh"],
+    contextMatch: { mode: "ssh" },
     params: [
       {
         name: "host",
@@ -296,6 +313,7 @@ const TOOLS: ToolDefinition[] = [
     category: "monitoring",
     command: "quox",
     args: ["health"],
+    tags: ["diagnostic"],
   },
   {
     id: "mon-agent-health",
@@ -304,6 +322,7 @@ const TOOLS: ToolDefinition[] = [
     category: "monitoring",
     command: "quoxagent",
     args: ["health"],
+    tags: ["diagnostic"],
   },
   {
     id: "mon-bastion-status",
@@ -312,6 +331,8 @@ const TOOLS: ToolDefinition[] = [
     category: "monitoring",
     command: "bastion",
     args: ["status"],
+    tags: ["remote", "ssh"],
+    contextMatch: { mode: "ssh" },
   },
 
   // ── Admin ──────────────────────────────────────────────────────────────
@@ -374,6 +395,59 @@ export function getToolsByCategory(): Record<ToolCategory, ToolDefinition[]> {
 
 export function getToolById(id: string): ToolDefinition | undefined {
   return TOOLS.find((t) => t.id === id);
+}
+
+export function getSuggestedTools(context: PaneContext): ToolDefinition[] {
+  // Disconnected pane — only admin tools (login, config)
+  if (!context.connected) {
+    return TOOLS.filter(
+      (t) => t.id === "admin-login" || t.id === "admin-config",
+    );
+  }
+
+  const suggestions: ToolDefinition[] = [];
+  const seen = new Set<string>();
+
+  const add = (tool: ToolDefinition) => {
+    if (!seen.has(tool.id)) {
+      seen.add(tool.id);
+      suggestions.push(tool);
+    }
+  };
+
+  // Error context — include diagnostic/monitoring tools first
+  if (context.hasError) {
+    for (const tool of TOOLS) {
+      if (tool.tags?.includes("diagnostic")) add(tool);
+    }
+  }
+
+  if (context.mode === "ssh") {
+    // SSH pane — ops tools, monitoring, and tools matching SSH mode
+    for (const tool of TOOLS) {
+      if (tool.contextMatch?.mode === "ssh") add(tool);
+      if (tool.tags?.includes("ops")) add(tool);
+    }
+    // Host pattern matching
+    if (context.hostId) {
+      for (const tool of TOOLS) {
+        if (
+          tool.contextMatch?.hostPattern &&
+          new RegExp(tool.contextMatch.hostPattern).test(context.hostId)
+        ) {
+          add(tool);
+        }
+      }
+    }
+  } else {
+    // Local pane — admin tools, TUI tools
+    for (const tool of TOOLS) {
+      if (tool.category === "admin") add(tool);
+      if (tool.category === "tui") add(tool);
+    }
+  }
+
+  return suggestions.slice(0, 5);
 }
 
 export function buildCommand(

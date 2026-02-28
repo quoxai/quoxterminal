@@ -112,6 +112,29 @@
   font-size: 12px;
 }
 
+/* ═══ Suggested ═══ */
+
+.tool-palette__suggested {
+  margin: 4px 8px 8px;
+  padding: 6px 0 6px 0;
+  border-left: 2px solid rgba(16, 185, 129, 0.4);
+  border-radius: 0 4px 4px 0;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.tool-palette__suggested-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(16, 185, 129, 0.7);
+  font-weight: 600;
+  padding: 0 12px 4px;
+}
+
+.tool-palette__suggested-tools {
+  padding: 2px 0;
+}
+
 /* ═══ Category ═══ */
 
 .tool-palette__category {

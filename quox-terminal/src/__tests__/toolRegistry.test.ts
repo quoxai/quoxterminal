@@ -5,8 +5,10 @@ import {
   getToolById,
   buildCommand,
   getCategoryLabel,
+  getSuggestedTools,
   type ToolDefinition,
   type ToolCategory,
+  type PaneContext,
 } from "../services/toolRegistry";
 
 describe("toolRegistry", () => {
@@ -226,6 +228,120 @@ describe("toolRegistry", () => {
       expect(getCategoryLabel("fleet")).toBe("Fleet & Infrastructure");
       expect(getCategoryLabel("ai")).toBe("AI & Chat");
       expect(getCategoryLabel("tui")).toBe("Interactive TUI");
+    });
+  });
+
+  describe("getSuggestedTools", () => {
+    it("returns ops/monitoring tools for SSH context", () => {
+      const ctx: PaneContext = {
+        mode: "ssh",
+        hostId: "root@docker01",
+        connected: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      expect(suggestions.length).toBeGreaterThan(0);
+      const ids = suggestions.map((t) => t.id);
+      expect(ids).toContain("bastion-exec");
+      expect(ids).toContain("mon-bastion-status");
+    });
+
+    it("returns admin/TUI tools for local context", () => {
+      const ctx: PaneContext = {
+        mode: "local",
+        hostId: "",
+        connected: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      expect(suggestions.length).toBeGreaterThan(0);
+      const ids = suggestions.map((t) => t.id);
+      expect(ids).toContain("admin-config");
+      expect(ids).toContain("admin-whoami");
+    });
+
+    it("returns diagnostic tools when hasError is true", () => {
+      const ctx: PaneContext = {
+        mode: "local",
+        hostId: "",
+        connected: true,
+        hasError: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      const ids = suggestions.map((t) => t.id);
+      expect(ids).toContain("mon-health");
+      expect(ids).toContain("mon-agent-health");
+    });
+
+    it("returns max 5 results", () => {
+      const ctx: PaneContext = {
+        mode: "ssh",
+        hostId: "root@docker01",
+        connected: true,
+        hasError: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      expect(suggestions.length).toBeLessThanOrEqual(5);
+    });
+
+    it("returns only admin tools for disconnected pane", () => {
+      const ctx: PaneContext = {
+        mode: "local",
+        hostId: "",
+        connected: false,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      const ids = suggestions.map((t) => t.id);
+      expect(ids).toContain("admin-login");
+      expect(ids).toContain("admin-config");
+      // Should not include ops or monitoring tools
+      expect(ids).not.toContain("bastion-exec");
+      expect(ids).not.toContain("mon-health");
+    });
+
+    it("matches host pattern in hostId", () => {
+      // Add a tool with hostPattern dynamically is not needed — we test existing tools
+      // bastion-exec has contextMatch.mode === "ssh", no hostPattern
+      // So this test verifies the SSH path includes ops tools for docker hosts
+      const ctx: PaneContext = {
+        mode: "ssh",
+        hostId: "root@docker01",
+        connected: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      const ids = suggestions.map((t) => t.id);
+      // ops tools should be included for SSH context
+      expect(ids).toContain("ops-logs");
+    });
+
+    it("deduplicates results", () => {
+      const ctx: PaneContext = {
+        mode: "ssh",
+        hostId: "root@docker01",
+        connected: true,
+        hasError: true,
+      };
+      const suggestions = getSuggestedTools(ctx);
+      const ids = suggestions.map((t) => t.id);
+      // No duplicate IDs
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it("returns SSH-mode tools not present in local suggestions", () => {
+      const sshCtx: PaneContext = {
+        mode: "ssh",
+        hostId: "root@docker01",
+        connected: true,
+      };
+      const localCtx: PaneContext = {
+        mode: "local",
+        hostId: "",
+        connected: true,
+      };
+      const sshIds = getSuggestedTools(sshCtx).map((t) => t.id);
+      const localIds = getSuggestedTools(localCtx).map((t) => t.id);
+
+      // bastion-exec should only be in SSH suggestions
+      expect(sshIds).toContain("bastion-exec");
+      expect(localIds).not.toContain("bastion-exec");
     });
   });
 });

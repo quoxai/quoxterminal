@@ -815,6 +815,11 @@ export default function TerminalView() {
         {toolsOpen && (
           <ToolPalette
             onClose={() => setToolsOpen(false)}
+            paneContext={{
+              mode: panes.find((p) => p.id === focusedPaneId)?.mode || "local",
+              hostId: panes.find((p) => p.id === focusedPaneId)?.hostId || "",
+              connected: panes.find((p) => p.id === focusedPaneId)?.connected || false,
+            }}
             onExecute={(command) => {
               const pane = panes.find((p) => p.id === focusedPaneId);
               if (pane?.sessionId) {

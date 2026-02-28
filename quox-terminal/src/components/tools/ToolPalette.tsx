@@ -10,8 +10,10 @@ import {
   getToolsByCategory,
   getCategoryLabel,
   buildCommand,
+  getSuggestedTools,
   type ToolDefinition,
   type ToolCategory,
+  type PaneContext,
 } from "../../services/toolRegistry";
 import ToolParamModal from "./ToolParamModal";
 import "./ToolPalette.css";
@@ -19,6 +21,7 @@ import "./ToolPalette.css";
 interface ToolPaletteProps {
   onClose: () => void;
   onExecute: (command: string) => void;
+  paneContext?: PaneContext;
 }
 
 const CATEGORY_ORDER: ToolCategory[] = [
@@ -32,7 +35,7 @@ const CATEGORY_ORDER: ToolCategory[] = [
   "tui",
 ];
 
-export default function ToolPalette({ onClose, onExecute }: ToolPaletteProps) {
+export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPaletteProps) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [paramTool, setParamTool] = useState<ToolDefinition | null>(null);
@@ -57,6 +60,20 @@ export default function ToolPalette({ onClose, onExecute }: ToolPaletteProps) {
     }
     return result as Record<ToolCategory, ToolDefinition[]>;
   }, [search, toolsByCategory]);
+
+  const suggestedTools = useMemo(() => {
+    if (!paneContext) return [];
+    return getSuggestedTools(paneContext);
+  }, [paneContext]);
+
+  const suggestedLabel = useMemo(() => {
+    if (!paneContext) return "";
+    if (paneContext.mode === "ssh" && paneContext.hostId) {
+      return `Suggested for ${paneContext.hostId}`;
+    }
+    if (paneContext.mode === "ssh") return "Suggested for SSH";
+    return "Suggested";
+  }, [paneContext]);
 
   const toggleCategory = (cat: string) => {
     setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -112,6 +129,37 @@ export default function ToolPalette({ onClose, onExecute }: ToolPaletteProps) {
 
       {/* Tool list */}
       <div className="tool-palette__list">
+        {/* Suggested tools section — only when context provided and not searching */}
+        {suggestedTools.length > 0 && !search.trim() && (
+          <div className="tool-palette__suggested" data-testid="tool-palette-suggested">
+            <div className="tool-palette__suggested-label">{suggestedLabel}</div>
+            <div className="tool-palette__suggested-tools">
+              {suggestedTools.map((tool) => (
+                <button
+                  key={`suggested-${tool.id}`}
+                  className="tool-palette__tool-btn"
+                  onClick={() => handleToolClick(tool)}
+                  title={`${tool.name}: ${tool.description}`}
+                >
+                  <div className="tool-palette__tool-info">
+                    <span className="tool-palette__tool-name">{tool.name}</span>
+                    <span className="tool-palette__tool-desc">{tool.description}</span>
+                  </div>
+                  <svg
+                    className="tool-palette__play-icon"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {CATEGORY_ORDER.map((cat) => {
           const tools = filteredCategories[cat];
           if (!tools || tools.length === 0) return null;
