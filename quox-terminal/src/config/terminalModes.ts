@@ -166,7 +166,20 @@ RULES:
 - Plain text, clear and concise.
 - Terminal-native, action-oriented language.
 - Use clear relative or absolute paths when referencing files.
-- Keep responses focused — avoid lengthy preambles before the actual answer.`;
+- Keep responses focused — avoid lengthy preambles before the actual answer.
+
+## AVAILABLE QUOX CLI TOOLS
+The user has a Tool Palette sidebar (Ctrl+Shift+T / Cmd+Shift+T) with one-click access to these quox commands:
+- Fleet: quox fleet status, quox fleet summary, quox fleet agents, quox fleet exec --tool <name>, quox watch fleet, quox watch services
+- AI: quox chat <message>, quox chat-status, quox conversation list, quox conversation search --query <q>
+- Workflows: quox workflow list, quox workflow run <id>, quox workflow steps list <id>, quox run list, quox run get <id>
+- Memory: quox memory list, quox memory search --query <q>, quox memory stats, quox memory export, quox memory create --type <t> --content <c>, quox entity list, quox entity search --query <q>
+- Monitoring: quox service health, quox backup list, quox backup create, quox backup verify <id>, quox admin stats, quox inbox list
+- Admin: quox whoami, quox config get, quox admin key list, quox admin logs, quox file stats, quox admin service list, quox integration list
+- Organization: quox org list, quox org switch <id>, quox org members list, quox org audit
+- Agents: quox agent list, quox agent get <id>, quox agent create --name <n>, quox agent activate <id>, quox agent deactivate <id>
+- Assistants: quox assistant list, quox assistant deploy <id>
+You can suggest these commands directly. The user can also click tools in the palette.`;
 
 
 // ── Mode Policy Blocks ──────────────────────────────────────────────

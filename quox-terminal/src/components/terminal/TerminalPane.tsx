@@ -42,6 +42,7 @@ interface TerminalPaneProps {
   onClose: (paneId: string) => void;
   onModeChange?: (paneId: string, mode: string, hostId: string) => void;
   onErrorAction?: (action: string, error: unknown) => void;
+  onErrorState?: (paneId: string, hasError: boolean) => void;
   customKeyHandler?: (event: KeyboardEvent) => boolean;
   clearRef?: React.MutableRefObject<(() => void) | null>;
   reconnectRef?: React.MutableRefObject<(() => void) | null>;
@@ -64,6 +65,7 @@ export default function TerminalPane({
   onClose,
   onModeChange,
   onErrorAction,
+  onErrorState,
   customKeyHandler,
   clearRef,
   reconnectRef,
@@ -89,7 +91,12 @@ export default function TerminalPane({
 
   // Error detection hook
   const { detectedError, dismissError, signalActivity } =
-    useTerminalErrorDetection(sessionId, "balanced", paneHostId || null);
+    useTerminalErrorDetection(sessionId, paneMode, paneHostId || null);
+
+  // Report error state changes to parent
+  useEffect(() => {
+    onErrorState?.(paneId, !!detectedError);
+  }, [paneId, !!detectedError, onErrorState]);
 
   const handleConnect = useCallback(() => {
     onConnect(paneId);
@@ -388,7 +395,7 @@ export default function TerminalPane({
             error={detectedError}
             onAction={(action, error) => onErrorAction?.(action, error)}
             onDismiss={dismissError}
-            mode="balanced"
+            mode={paneMode}
           />
         )}
       </div>

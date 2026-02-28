@@ -5,7 +5,7 @@
  * Groups tools by category with search filtering and collapsible sections.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   getToolsByCategory,
   getCategoryLabel,
@@ -32,12 +32,25 @@ const CATEGORY_ORDER: ToolCategory[] = [
   "memory",
   "monitoring",
   "admin",
+  "org",
+  "agents",
+  "assistants",
 ];
 
 export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPaletteProps) {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [paramTool, setParamTool] = useState<ToolDefinition | null>(null);
+  const [confirmTool, setConfirmTool] = useState<ToolDefinition | null>(null);
+
+  // Escape key closes palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const toolsByCategory = useMemo(() => getToolsByCategory(), []);
 
@@ -51,7 +64,8 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
         (t) =>
           t.name.toLowerCase().includes(query) ||
           t.description.toLowerCase().includes(query) ||
-          t.command.toLowerCase().includes(query),
+          t.command.toLowerCase().includes(query) ||
+          t.tags?.some((tag) => tag.toLowerCase().includes(query)),
       );
       if (matches.length > 0) {
         result[cat as ToolCategory] = matches;
@@ -81,6 +95,9 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
   const handleToolClick = (tool: ToolDefinition) => {
     if (tool.params && tool.params.length > 0) {
       setParamTool(tool);
+    } else if (tool.dangerous) {
+      // Dangerous tool with no params — show confirmation
+      setConfirmTool(tool);
     } else {
       onExecute(buildCommand(tool));
     }
@@ -146,6 +163,9 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
                       {tool.isTui && (
                         <span className="tool-palette__tui-badge">TUI</span>
                       )}
+                      {(tool.params?.length ?? 0) > 0 && (
+                        <span className="tool-palette__param-indicator" title="Has parameters">...</span>
+                      )}
                     </span>
                     <span className="tool-palette__tool-desc">{tool.description}</span>
                   </div>
@@ -209,6 +229,9 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
                           {tool.isTui && (
                             <span className="tool-palette__tui-badge">TUI</span>
                           )}
+                          {(tool.params?.length ?? 0) > 0 && (
+                            <span className="tool-palette__param-indicator" title="Has parameters">...</span>
+                          )}
                         </span>
                         <span className="tool-palette__tool-desc">
                           {tool.description}
@@ -247,6 +270,19 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
             setParamTool(null);
           }}
           onClose={() => setParamTool(null)}
+        />
+      )}
+
+      {/* Dangerous tool confirmation modal */}
+      {confirmTool && (
+        <ToolParamModal
+          tool={confirmTool}
+          confirmOnly
+          onExecute={(cmd) => {
+            onExecute(cmd);
+            setConfirmTool(null);
+          }}
+          onClose={() => setConfirmTool(null)}
         />
       )}
     </div>

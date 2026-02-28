@@ -4,6 +4,7 @@ import {
   getToolsByCategory,
   getToolById,
   buildCommand,
+  shellEscape,
   getCategoryLabel,
   getSuggestedTools,
   type ToolDefinition,
@@ -66,6 +67,9 @@ describe("toolRegistry", () => {
         "memory",
         "monitoring",
         "admin",
+        "org",
+        "agents",
+        "assistants",
       ];
       for (const cat of categories) {
         expect(grouped[cat]).toBeDefined();
@@ -91,8 +95,43 @@ describe("toolRegistry", () => {
       expect(tool!.category).toBe("fleet");
     });
 
+    it("finds new category tools", () => {
+      expect(getToolById("org-list")).toBeDefined();
+      expect(getToolById("agent-list")).toBeDefined();
+      expect(getToolById("assistant-list")).toBeDefined();
+    });
+
     it("returns undefined for unknown ID", () => {
       expect(getToolById("nonexistent-tool")).toBeUndefined();
+    });
+  });
+
+  describe("shellEscape", () => {
+    it("returns empty string for empty input", () => {
+      expect(shellEscape("")).toBe("");
+    });
+
+    it("does not quote safe values", () => {
+      expect(shellEscape("hello")).toBe("hello");
+      expect(shellEscape("my-tool")).toBe("my-tool");
+      expect(shellEscape("path/to/file")).toBe("path/to/file");
+      expect(shellEscape("file.txt")).toBe("file.txt");
+    });
+
+    it("quotes values with spaces", () => {
+      expect(shellEscape("hello world")).toBe("'hello world'");
+    });
+
+    it("escapes single quotes", () => {
+      expect(shellEscape("it's")).toBe("'it'\\''s'");
+    });
+
+    it("quotes values with special characters", () => {
+      expect(shellEscape('{"key": "value"}')).toBe("'{\"key\": \"value\"}'");
+      expect(shellEscape("$(echo pwned)")).toBe("'$(echo pwned)'");
+      expect(shellEscape("`whoami`")).toBe("'`whoami`'");
+      expect(shellEscape("a;b")).toBe("'a;b'");
+      expect(shellEscape("a|b")).toBe("'a|b'");
     });
   });
 
@@ -143,7 +182,7 @@ describe("toolRegistry", () => {
       );
     });
 
-    it("quotes values with spaces in named flags", () => {
+    it("shell-escapes values with spaces", () => {
       const tool: ToolDefinition = {
         id: "test",
         name: "Test",
@@ -156,7 +195,75 @@ describe("toolRegistry", () => {
         ],
       };
       expect(buildCommand(tool, { query: "docker deployment" })).toBe(
-        'quox memory search --query "docker deployment"',
+        "quox memory search --query 'docker deployment'",
+      );
+    });
+
+    it("shell-escapes values with special characters", () => {
+      const tool: ToolDefinition = {
+        id: "test",
+        name: "Test",
+        description: "Test tool",
+        category: "fleet",
+        command: "quox",
+        args: ["fleet", "exec"],
+        params: [
+          { name: "input", label: "Input", type: "text", flag: "--input" },
+        ],
+      };
+      expect(buildCommand(tool, { input: '{"key": "value"}' })).toBe(
+        "quox fleet exec --input '{\"key\": \"value\"}'",
+      );
+    });
+
+    it("prevents command injection via $()", () => {
+      const tool: ToolDefinition = {
+        id: "test",
+        name: "Test",
+        description: "Test tool",
+        category: "fleet",
+        command: "quox",
+        args: ["fleet", "exec"],
+        params: [
+          { name: "input", label: "Input", type: "text", flag: "--input" },
+        ],
+      };
+      expect(buildCommand(tool, { input: "$(echo pwned)" })).toBe(
+        "quox fleet exec --input '$(echo pwned)'",
+      );
+    });
+
+    it("prevents command injection via backticks", () => {
+      const tool: ToolDefinition = {
+        id: "test",
+        name: "Test",
+        description: "Test tool",
+        category: "fleet",
+        command: "quox",
+        args: ["fleet", "exec"],
+        params: [
+          { name: "input", label: "Input", type: "text", flag: "--input" },
+        ],
+      };
+      expect(buildCommand(tool, { input: "`whoami`" })).toBe(
+        "quox fleet exec --input '`whoami`'",
+      );
+    });
+
+    it("prevents command injection via semicolons", () => {
+      const tool: ToolDefinition = {
+        id: "test",
+        name: "Test",
+        description: "Test tool",
+        category: "fleet",
+        command: "quox",
+        args: ["fleet", "exec"],
+        params: [
+          { name: "input", label: "Input", type: "text", flag: "--input" },
+        ],
+      };
+      expect(buildCommand(tool, { input: "foo; rm -rf /" })).toBe(
+        "quox fleet exec --input 'foo; rm -rf /'",
       );
     });
 
@@ -221,6 +328,9 @@ describe("toolRegistry", () => {
       expect(getCategoryLabel("fleet")).toBe("Fleet & Infrastructure");
       expect(getCategoryLabel("ai")).toBe("AI & Chat");
       expect(getCategoryLabel("tui")).toBe("Interactive TUI");
+      expect(getCategoryLabel("org")).toBe("Organization");
+      expect(getCategoryLabel("agents")).toBe("Agents");
+      expect(getCategoryLabel("assistants")).toBe("Assistants");
     });
   });
 
@@ -295,6 +405,30 @@ describe("toolRegistry", () => {
       const suggestions = getSuggestedTools(ctx);
       const ids = suggestions.map((t) => t.id);
       expect(new Set(ids).size).toBe(ids.length);
+    });
+  });
+
+  describe("dangerous flag", () => {
+    it("admin-logout is marked dangerous", () => {
+      const tool = getToolById("admin-logout");
+      expect(tool?.dangerous).toBe(true);
+    });
+
+    it("mon-backup-create is marked dangerous", () => {
+      const tool = getToolById("mon-backup-create");
+      expect(tool?.dangerous).toBe(true);
+    });
+
+    it("fleet-status is not dangerous", () => {
+      const tool = getToolById("fleet-status");
+      expect(tool?.dangerous).toBeFalsy();
+    });
+  });
+
+  describe("contextMatch", () => {
+    it("fleet-status has contextMatch for SSH", () => {
+      const tool = getToolById("fleet-status");
+      expect(tool?.contextMatch?.mode).toBe("ssh");
     });
   });
 });

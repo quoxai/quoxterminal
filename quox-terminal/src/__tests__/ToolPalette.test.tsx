@@ -14,16 +14,20 @@ describe("ToolPalette", () => {
     render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
 
     expect(screen.getByText("Fleet & Infrastructure")).toBeInTheDocument();
-    expect(screen.getByText("Operations & Deployment")).toBeInTheDocument();
+    expect(screen.getByText("Interactive TUI")).toBeInTheDocument();
     expect(screen.getByText("AI & Chat")).toBeInTheDocument();
     expect(screen.getByText("Monitoring & Health")).toBeInTheDocument();
+    expect(screen.getByText("Admin & Config")).toBeInTheDocument();
+    expect(screen.getByText("Organization")).toBeInTheDocument();
+    expect(screen.getByText("Agents")).toBeInTheDocument();
+    expect(screen.getByText("Assistants")).toBeInTheDocument();
   });
 
   it("renders tool names", () => {
     render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
 
-    expect(screen.getByText("Fleet List")).toBeInTheDocument();
-    expect(screen.getByText("Platform Health")).toBeInTheDocument();
+    expect(screen.getByText("Fleet Status")).toBeInTheDocument();
+    expect(screen.getByText("Service Health")).toBeInTheDocument();
     expect(screen.getByText("Who Am I")).toBeInTheDocument();
   });
 
@@ -39,18 +43,19 @@ describe("ToolPalette", () => {
     const onExecute = vi.fn();
     render(<ToolPalette onClose={vi.fn()} onExecute={onExecute} />);
 
-    // Fleet List has no params — clicking should call onExecute immediately
-    fireEvent.click(screen.getByTitle("Fleet List: List all fleet agents"));
+    // Fleet Summary has no required params (output is optional) but has params
+    // Who Am I has no params — clicking should call onExecute immediately
+    fireEvent.click(screen.getByTitle("Who Am I: Show current user identity"));
     expect(onExecute).toHaveBeenCalledOnce();
-    expect(onExecute).toHaveBeenCalledWith("quox fleet list");
+    expect(onExecute).toHaveBeenCalledWith("quox whoami");
   });
 
   it("opens param modal for tools with params", () => {
     render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
 
-    // Deploy Service has params
+    // Memory Search has a required --query param
     fireEvent.click(
-      screen.getByTitle("Deploy Service: Deploy a service to the fleet"),
+      screen.getByTitle("Memory Search: Search memories by query"),
     );
     expect(screen.getByTestId("tool-param-modal")).toBeInTheDocument();
   });
@@ -59,15 +64,25 @@ describe("ToolPalette", () => {
     render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
 
     const input = screen.getByPlaceholderText("Search tools...");
-    fireEvent.change(input, { target: { value: "bastion" } });
+    fireEvent.change(input, { target: { value: "fleet" } });
 
-    // Should show bastion-related tools
-    expect(screen.getByText("Bastion Exec")).toBeInTheDocument();
-    expect(screen.getByText("Bastion Status")).toBeInTheDocument();
-    expect(screen.getByText("Bastion TUI")).toBeInTheDocument();
+    // Should show fleet-related tools
+    expect(screen.getByText("Fleet Status")).toBeInTheDocument();
+    expect(screen.getByText("Fleet Summary")).toBeInTheDocument();
 
     // Should NOT show unrelated tools
-    expect(screen.queryByText("Fleet List")).not.toBeInTheDocument();
+    expect(screen.queryByText("Who Am I")).not.toBeInTheDocument();
+  });
+
+  it("filters tools by tags", () => {
+    render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText("Search tools...");
+    fireEvent.change(input, { target: { value: "diagnostic" } });
+
+    // Tools tagged "diagnostic" should appear
+    expect(screen.getByText("Service Health")).toBeInTheDocument();
+    expect(screen.getByText("Memory Stats")).toBeInTheDocument();
   });
 
   it("shows empty state when search has no matches", () => {
@@ -82,16 +97,16 @@ describe("ToolPalette", () => {
   it("collapses and expands categories", () => {
     render(<ToolPalette onClose={vi.fn()} onExecute={vi.fn()} />);
 
-    // Fleet List should be visible initially
-    expect(screen.getByText("Fleet List")).toBeInTheDocument();
+    // Fleet Status should be visible initially
+    expect(screen.getByText("Fleet Status")).toBeInTheDocument();
 
     // Click the category header to collapse
     fireEvent.click(screen.getByText("Fleet & Infrastructure"));
-    expect(screen.queryByText("Fleet List")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fleet Status")).not.toBeInTheDocument();
 
     // Click again to expand
     fireEvent.click(screen.getByText("Fleet & Infrastructure"));
-    expect(screen.getByText("Fleet List")).toBeInTheDocument();
+    expect(screen.getByText("Fleet Status")).toBeInTheDocument();
   });
 
   describe("Suggested section", () => {
@@ -162,15 +177,14 @@ describe("ToolPalette", () => {
         />,
       );
 
-      // "Who Am I" should appear in suggestions for local mode (admin tool)
-      // Find it in the suggested section and click
+      // "Quox TUI" should appear in suggestions for local mode (TUI tool)
       const suggested = screen.getByTestId("tool-palette-suggested");
-      const whoami = suggested.querySelector(
-        '[title="Who Am I: Show current user identity"]',
+      const quoxTui = suggested.querySelector(
+        '[title="Quox TUI: Launch full interactive terminal UI"]',
       );
-      expect(whoami).toBeTruthy();
-      fireEvent.click(whoami!);
-      expect(onExecute).toHaveBeenCalledWith("quox whoami");
+      expect(quoxTui).toBeTruthy();
+      fireEvent.click(quoxTui!);
+      expect(onExecute).toHaveBeenCalledWith("quox tui");
     });
   });
 });

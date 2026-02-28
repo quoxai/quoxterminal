@@ -166,11 +166,16 @@ function getCommandAction(command: string): {
 // ── Public API ──────────────────────────────────────────────────────
 
 /**
- * Execute a command in the user's terminal via Tauri PTY.
+ * Execute a command in the user's terminal via Tauri PTY or SSH.
+ *
+ * @param sessionId - The PTY or SSH session ID
+ * @param command - The command string to execute
+ * @param sessionType - 'local' for PTY, 'ssh' for SSH session
  */
 export async function execInTerminal(
   sessionId: string,
-  command: string
+  command: string,
+  sessionType: 'local' | 'ssh' = 'local'
 ): Promise<ExecResult> {
   if (!sessionId) {
     return { ok: false, error: 'No active terminal session' };
@@ -180,7 +185,12 @@ export async function execInTerminal(
   }
 
   try {
-    await ptyWrite(sessionId, command.trim() + '\n');
+    if (sessionType === 'ssh') {
+      const { sshWrite } = await import('../lib/tauri-ssh');
+      await sshWrite(sessionId, command.trim() + '\n');
+    } else {
+      await ptyWrite(sessionId, command.trim() + '\n');
+    }
     return { ok: true, action: 'ALLOW' };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'PTY write error' };

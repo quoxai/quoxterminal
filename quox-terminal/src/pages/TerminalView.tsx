@@ -145,6 +145,7 @@ export default function TerminalView() {
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [previousSessions, setPreviousSessions] = useState<PreviousSession[]>([]);
+  const [paneErrors, setPaneErrors] = useState<Record<string, boolean>>({});
   const [pendingErrorAction, setPendingErrorAction] = useState<{
     action: 'explain' | 'fix';
     errorType: string;
@@ -226,6 +227,16 @@ export default function TerminalView() {
   const clearPendingErrorAction = useCallback(() => {
     setPendingErrorAction(null);
   }, []);
+
+  const handlePaneErrorState = useCallback(
+    (paneId: string, hasError: boolean) => {
+      setPaneErrors((prev) => {
+        if (prev[paneId] === hasError) return prev;
+        return { ...prev, [paneId]: hasError };
+      });
+    },
+    [],
+  );
 
   // ── Keyboard shortcut handler ──────────────────────────────────────────
 
@@ -743,6 +754,7 @@ export default function TerminalView() {
               onClose={handlePaneClose}
               onModeChange={handlePaneModeChange}
               onErrorAction={handleErrorAction}
+              onErrorState={handlePaneErrorState}
               customKeyHandler={handleShortcut}
               clearRef={clearRefs.current[pane.id]}
               reconnectRef={reconnectRefs.current[pane.id]}
@@ -786,15 +798,22 @@ export default function TerminalView() {
               mode: panes.find((p) => p.id === focusedPaneId)?.mode || "local",
               hostId: panes.find((p) => p.id === focusedPaneId)?.hostId || "",
               connected: panes.find((p) => p.id === focusedPaneId)?.connected || false,
+              hasError: paneErrors[focusedPaneId] || false,
             }}
             onExecute={(command) => {
               const pane = panes.find((p) => p.id === focusedPaneId);
-              if (pane?.sessionId) {
-                import("../lib/tauri-pty").then(({ ptyWrite }) => {
-                  ptyWrite(pane.sessionId!, command + "\n");
-                });
+              if (!pane?.sessionId) {
+                return;
               }
-              setToolsOpen(false);
+              const sessionType = pane.mode === 'ssh' ? 'ssh' : 'local';
+              import("../services/terminalExecService").then(({ execInTerminal }) => {
+                execInTerminal(pane.sessionId!, command, sessionType as 'local' | 'ssh');
+              });
+              import("../services/terminalMemoryBridge").then(({ recordCommandExecution }) => {
+                recordCommandExecution(command, pane.hostId || null).catch(() => {});
+              });
+              // Brief feedback before closing
+              setTimeout(() => setToolsOpen(false), 600);
             }}
           />
         )}

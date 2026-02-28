@@ -18,6 +18,7 @@ export interface DetectedError {
   errorType: string;
   errorLine: string;
   suggestion: string;
+  suggestedToolIds?: string[];
 }
 
 export interface DetectedErrorEntry {
@@ -114,6 +115,21 @@ const ERROR_PATTERNS: ErrorPattern[] = [
   },
 ];
 
+// ── Error type → suggested tool mappings ──────────────────────────────
+
+const ERROR_TOOL_MAP: Record<string, string[]> = {
+  connection_refused: ['fleet-status', 'mon-health'],
+  connection_timeout: ['fleet-status', 'mon-health'],
+  node_connection_refused: ['fleet-status', 'mon-health'],
+  command_not_found: ['admin-config'],
+  permission_denied: ['admin-whoami'],
+  node_permission: ['admin-whoami'],
+  disk_full: ['mem-stats', 'admin-file-stats'],
+  oom: ['mon-admin-stats'],
+  docker_error: ['fleet-status'],
+  package_not_found: ['admin-config'],
+};
+
 /**
  * Detect the first error in terminal output.
  *
@@ -133,6 +149,7 @@ export function detectTerminalError(output: string): DetectedError | null {
           errorType: type,
           errorLine: line.trim(),
           suggestion,
+          suggestedToolIds: ERROR_TOOL_MAP[type],
         };
       }
     }

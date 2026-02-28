@@ -15,7 +15,10 @@ export type ToolCategory =
   | "workflows"
   | "memory"
   | "monitoring"
-  | "admin";
+  | "admin"
+  | "org"
+  | "agents"
+  | "assistants";
 
 export interface ToolParam {
   name: string;
@@ -46,6 +49,8 @@ export interface ToolDefinition {
     mode?: "local" | "ssh";
     hostPattern?: string;
   };
+  /** Tool requires confirmation before execution */
+  dangerous?: boolean;
 }
 
 export interface PaneContext {
@@ -63,11 +68,37 @@ const CATEGORY_LABELS: Record<ToolCategory, string> = {
   memory: "Memory & Entities",
   monitoring: "Monitoring & Health",
   admin: "Admin & Config",
+  org: "Organization",
+  agents: "Agents",
+  assistants: "Assistants",
 };
 
 export function getCategoryLabel(category: ToolCategory): string {
   return CATEGORY_LABELS[category];
 }
+
+// ── Shared param templates ─────────────────────────────────────────────
+
+const OUTPUT_PARAM: ToolParam = {
+  name: "output",
+  label: "Output Format",
+  type: "select",
+  flag: "--output",
+  options: [
+    { label: "Table", value: "" },
+    { label: "JSON", value: "json" },
+    { label: "CSV", value: "csv" },
+    { label: "Quiet (IDs only)", value: "quiet" },
+  ],
+};
+
+const LIMIT_PARAM: ToolParam = {
+  name: "limit",
+  label: "Limit",
+  type: "text",
+  flag: "--limit",
+  placeholder: "25",
+};
 
 const TOOLS: ToolDefinition[] = [
   // ── Interactive TUI (highlighted at top) ──────────────────────────────
@@ -90,24 +121,6 @@ const TOOLS: ToolDefinition[] = [
     isTui: true,
   },
   {
-    id: "tui-fleet-watch",
-    name: "Fleet Watch",
-    description: "Live fleet status dashboard (auto-refreshing)",
-    category: "tui",
-    command: "quox",
-    args: ["watch", "fleet"],
-    isTui: true,
-  },
-  {
-    id: "tui-service-watch",
-    name: "Service Watch",
-    description: "Live service health dashboard (auto-refreshing)",
-    category: "tui",
-    command: "quox",
-    args: ["watch", "services"],
-    isTui: true,
-  },
-  {
     id: "tui-login",
     name: "Interactive Login",
     description: "Authenticate with QuoxCORE (interactive prompts)",
@@ -125,6 +138,8 @@ const TOOLS: ToolDefinition[] = [
     category: "fleet",
     command: "quox",
     args: ["fleet", "status"],
+    params: [OUTPUT_PARAM],
+    contextMatch: { mode: "ssh" },
   },
   {
     id: "fleet-summary",
@@ -133,6 +148,7 @@ const TOOLS: ToolDefinition[] = [
     category: "fleet",
     command: "quox",
     args: ["fleet", "summary"],
+    contextMatch: { mode: "ssh" },
   },
   {
     id: "fleet-agents",
@@ -141,6 +157,8 @@ const TOOLS: ToolDefinition[] = [
     category: "fleet",
     command: "quox",
     args: ["fleet", "agents"],
+    params: [OUTPUT_PARAM],
+    contextMatch: { mode: "ssh" },
   },
   {
     id: "fleet-tools",
@@ -157,6 +175,7 @@ const TOOLS: ToolDefinition[] = [
     category: "fleet",
     command: "quox",
     args: ["fleet", "exec"],
+    contextMatch: { mode: "ssh" },
     params: [
       {
         name: "tool",
@@ -183,12 +202,40 @@ const TOOLS: ToolDefinition[] = [
     ],
   },
   {
-    id: "agent-list",
-    name: "Agent List",
-    description: "List registered agents",
+    id: "fleet-watch",
+    name: "Fleet Watch",
+    description: "Live fleet status dashboard (auto-refreshing)",
     category: "fleet",
     command: "quox",
-    args: ["agent", "list"],
+    args: ["watch", "fleet"],
+    isTui: true,
+    params: [
+      {
+        name: "interval",
+        label: "Interval (seconds)",
+        type: "text",
+        flag: "--interval",
+        placeholder: "5",
+      },
+    ],
+  },
+  {
+    id: "fleet-service-watch",
+    name: "Service Watch",
+    description: "Live service health dashboard (auto-refreshing)",
+    category: "fleet",
+    command: "quox",
+    args: ["watch", "services"],
+    isTui: true,
+    params: [
+      {
+        name: "interval",
+        label: "Interval (seconds)",
+        type: "text",
+        flag: "--interval",
+        placeholder: "5",
+      },
+    ],
   },
 
   // ── AI & Chat ─────────────────────────────────────────────────────────
@@ -217,6 +264,32 @@ const TOOLS: ToolDefinition[] = [
     command: "quox",
     args: ["chat-status"],
   },
+  {
+    id: "ai-conversation-list",
+    name: "Conversations",
+    description: "List recent AI conversations",
+    category: "ai",
+    command: "quox",
+    args: ["conversation", "list"],
+  },
+  {
+    id: "ai-conversation-search",
+    name: "Search Conversations",
+    description: "Search AI conversation history",
+    category: "ai",
+    command: "quox",
+    args: ["conversation", "search"],
+    params: [
+      {
+        name: "query",
+        label: "Query",
+        type: "text",
+        flag: "--query",
+        placeholder: "deployment issue",
+        required: true,
+      },
+    ],
+  },
 
   // ── Workflows & Runs ──────────────────────────────────────────────────
   {
@@ -226,6 +299,7 @@ const TOOLS: ToolDefinition[] = [
     category: "workflows",
     command: "quox",
     args: ["workflow", "list"],
+    params: [OUTPUT_PARAM],
   },
   {
     id: "wf-run",
@@ -245,12 +319,30 @@ const TOOLS: ToolDefinition[] = [
     ],
   },
   {
+    id: "wf-steps",
+    name: "Workflow Steps",
+    description: "List steps for a workflow",
+    category: "workflows",
+    command: "quox",
+    args: ["workflow", "steps", "list"],
+    params: [
+      {
+        name: "workflowId",
+        label: "Workflow ID",
+        type: "text",
+        placeholder: "wf-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
     id: "run-list",
     name: "List Runs",
     description: "List workflow run history",
     category: "workflows",
     command: "quox",
     args: ["run", "list"],
+    params: [OUTPUT_PARAM, LIMIT_PARAM],
   },
   {
     id: "run-get",
@@ -302,6 +394,8 @@ const TOOLS: ToolDefinition[] = [
           { label: "Observation", value: "observation" },
         ],
       },
+      OUTPUT_PARAM,
+      LIMIT_PARAM,
     ],
   },
   {
@@ -323,12 +417,52 @@ const TOOLS: ToolDefinition[] = [
     ],
   },
   {
+    id: "mem-export",
+    name: "Memory Export",
+    description: "Export all memories",
+    category: "memory",
+    command: "quox",
+    args: ["memory", "export"],
+  },
+  {
+    id: "mem-create",
+    name: "Create Memory",
+    description: "Create a new memory entry",
+    category: "memory",
+    command: "quox",
+    args: ["memory", "create"],
+    params: [
+      {
+        name: "type",
+        label: "Type",
+        type: "select",
+        flag: "--type",
+        required: true,
+        options: [
+          { label: "Fact", value: "fact" },
+          { label: "Decision", value: "decision" },
+          { label: "Preference", value: "preference" },
+          { label: "Observation", value: "observation" },
+        ],
+      },
+      {
+        name: "content",
+        label: "Content",
+        type: "text",
+        flag: "--content",
+        placeholder: "Memory content...",
+        required: true,
+      },
+    ],
+  },
+  {
     id: "entity-list",
     name: "Entity List",
     description: "List knowledge graph entities",
     category: "memory",
     command: "quox",
     args: ["entity", "list"],
+    params: [OUTPUT_PARAM, LIMIT_PARAM],
   },
   {
     id: "entity-search",
@@ -374,6 +508,7 @@ const TOOLS: ToolDefinition[] = [
     category: "monitoring",
     command: "quox",
     args: ["backup", "create"],
+    dangerous: true,
     params: [
       {
         name: "label",
@@ -395,6 +530,31 @@ const TOOLS: ToolDefinition[] = [
     ],
   },
   {
+    id: "mon-backup-verify",
+    name: "Verify Backup",
+    description: "Verify a backup's integrity",
+    category: "monitoring",
+    command: "quox",
+    args: ["backup", "verify"],
+    params: [
+      {
+        name: "backupId",
+        label: "Backup ID",
+        type: "text",
+        placeholder: "bak-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "mon-backup-schedule",
+    name: "Backup Schedule",
+    description: "List backup schedules",
+    category: "monitoring",
+    command: "quox",
+    args: ["backup", "schedule", "list"],
+  },
+  {
     id: "mon-admin-stats",
     name: "Platform Stats",
     description: "Show platform statistics",
@@ -410,6 +570,7 @@ const TOOLS: ToolDefinition[] = [
     category: "monitoring",
     command: "quox",
     args: ["inbox", "list"],
+    params: [OUTPUT_PARAM, LIMIT_PARAM],
   },
   {
     id: "mon-inbox-stats",
@@ -444,14 +605,7 @@ const TOOLS: ToolDefinition[] = [
     category: "admin",
     command: "quox",
     args: ["logout"],
-  },
-  {
-    id: "admin-org-list",
-    name: "Organizations",
-    description: "List organizations",
-    category: "admin",
-    command: "quox",
-    args: ["org", "list"],
+    dangerous: true,
   },
   {
     id: "admin-keys",
@@ -460,6 +614,7 @@ const TOOLS: ToolDefinition[] = [
     category: "admin",
     command: "quox",
     args: ["admin", "key", "list"],
+    params: [OUTPUT_PARAM],
   },
   {
     id: "admin-audit",
@@ -468,6 +623,7 @@ const TOOLS: ToolDefinition[] = [
     category: "admin",
     command: "quox",
     args: ["admin", "logs"],
+    params: [OUTPUT_PARAM, LIMIT_PARAM],
   },
   {
     id: "admin-file-stats",
@@ -476,6 +632,267 @@ const TOOLS: ToolDefinition[] = [
     category: "admin",
     command: "quox",
     args: ["file", "stats"],
+  },
+  {
+    id: "admin-service-list",
+    name: "Service List",
+    description: "List registered services",
+    category: "admin",
+    command: "quox",
+    args: ["admin", "service", "list"],
+  },
+  {
+    id: "admin-mfa-setup",
+    name: "MFA Setup",
+    description: "Set up multi-factor authentication",
+    category: "admin",
+    command: "quox",
+    args: ["mfa", "setup"],
+    isTui: true,
+  },
+  {
+    id: "admin-retention",
+    name: "Retention Stats",
+    description: "Show data retention statistics",
+    category: "admin",
+    command: "quox",
+    args: ["admin", "retention", "stats"],
+  },
+  {
+    id: "admin-integration-list",
+    name: "Integrations",
+    description: "List configured integrations",
+    category: "admin",
+    command: "quox",
+    args: ["integration", "list"],
+  },
+  {
+    id: "admin-integration-test",
+    name: "Test Integration",
+    description: "Test an integration connection",
+    category: "admin",
+    command: "quox",
+    args: ["integration", "test"],
+    params: [
+      {
+        name: "integrationId",
+        label: "Integration ID",
+        type: "text",
+        placeholder: "int-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "admin-tag-list",
+    name: "Tag List",
+    description: "List all tags",
+    category: "admin",
+    command: "quox",
+    args: ["tag", "list"],
+  },
+  {
+    id: "admin-notification",
+    name: "Notification Channels",
+    description: "List notification channels",
+    category: "admin",
+    command: "quox",
+    args: ["notification", "channels", "list"],
+  },
+
+  // ── Organization ──────────────────────────────────────────────────────
+  {
+    id: "org-list",
+    name: "Org List",
+    description: "List organizations",
+    category: "org",
+    command: "quox",
+    args: ["org", "list"],
+  },
+  {
+    id: "org-switch",
+    name: "Org Switch",
+    description: "Switch active organization",
+    category: "org",
+    command: "quox",
+    args: ["org", "switch"],
+    params: [
+      {
+        name: "orgId",
+        label: "Organization ID",
+        type: "text",
+        placeholder: "org-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "org-members",
+    name: "Org Members",
+    description: "List organization members",
+    category: "org",
+    command: "quox",
+    args: ["org", "members", "list"],
+  },
+  {
+    id: "org-audit",
+    name: "Org Audit",
+    description: "View organization audit log",
+    category: "org",
+    command: "quox",
+    args: ["org", "audit"],
+    params: [
+      {
+        name: "action",
+        label: "Action Filter",
+        type: "text",
+        flag: "--action",
+        placeholder: "login",
+      },
+      LIMIT_PARAM,
+    ],
+  },
+
+  // ── Agents ────────────────────────────────────────────────────────────
+  {
+    id: "agent-list",
+    name: "Agent List",
+    description: "List registered agents",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "list"],
+    params: [OUTPUT_PARAM],
+  },
+  {
+    id: "agent-get",
+    name: "Agent Details",
+    description: "Get agent details",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "get"],
+    params: [
+      {
+        name: "agentId",
+        label: "Agent ID",
+        type: "text",
+        placeholder: "agt-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "agent-create",
+    name: "Create Agent",
+    description: "Create a new agent",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "create"],
+    params: [
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        flag: "--name",
+        placeholder: "my-agent",
+        required: true,
+      },
+      {
+        name: "level",
+        label: "Level",
+        type: "select",
+        flag: "--level",
+        options: [
+          { label: "Standard", value: "" },
+          { label: "Advanced", value: "advanced" },
+          { label: "Expert", value: "expert" },
+        ],
+      },
+      {
+        name: "domain",
+        label: "Domain",
+        type: "text",
+        flag: "--domain",
+        placeholder: "infrastructure",
+      },
+    ],
+  },
+  {
+    id: "agent-activate",
+    name: "Activate Agent",
+    description: "Activate an agent",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "activate"],
+    params: [
+      {
+        name: "agentId",
+        label: "Agent ID",
+        type: "text",
+        placeholder: "agt-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "agent-deactivate",
+    name: "Deactivate Agent",
+    description: "Deactivate an agent",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "deactivate"],
+    params: [
+      {
+        name: "agentId",
+        label: "Agent ID",
+        type: "text",
+        placeholder: "agt-abc123",
+        required: true,
+      },
+    ],
+  },
+  {
+    id: "agent-tool-list",
+    name: "Agent Tools",
+    description: "List tools available to an agent",
+    category: "agents",
+    command: "quox",
+    args: ["agent", "tool", "list"],
+    params: [
+      {
+        name: "agentId",
+        label: "Agent ID",
+        type: "text",
+        placeholder: "agt-abc123",
+        required: true,
+      },
+    ],
+  },
+
+  // ── Assistants ────────────────────────────────────────────────────────
+  {
+    id: "assistant-list",
+    name: "Assistant List",
+    description: "List deployed assistants",
+    category: "assistants",
+    command: "quox",
+    args: ["assistant", "list"],
+  },
+  {
+    id: "assistant-deploy",
+    name: "Deploy Assistant",
+    description: "Deploy an assistant",
+    category: "assistants",
+    command: "quox",
+    args: ["assistant", "deploy"],
+    params: [
+      {
+        name: "assistantId",
+        label: "Assistant ID",
+        type: "text",
+        placeholder: "ast-abc123",
+        required: true,
+      },
+    ],
   },
 ];
 
@@ -553,12 +970,29 @@ export function getSuggestedTools(context: PaneContext): ToolDefinition[] {
 }
 
 /**
+ * Shell-escape a value for safe interpolation into a command string.
+ *
+ * If the value is "safe" (only alphanumeric, dash, underscore, dot, slash, colon),
+ * it is returned as-is. Otherwise it is single-quoted with inner single-quotes
+ * escaped as `'\''`.
+ */
+export function shellEscape(value: string): string {
+  if (!value) return '';
+  // Safe characters that need no quoting
+  if (/^[a-zA-Z0-9._\-\/:]+$/.test(value)) return value;
+  // Single-quote and escape inner single-quotes
+  return "'" + value.replace(/'/g, "'\\''") + "'";
+}
+
+/**
  * Build the CLI command string from a tool definition and parameter values.
  *
  * Supports both positional args and named flags:
  * - If a param has `flag` set (e.g., "--query"), emits `--query value`
  * - If a param has no `flag`, appends the value positionally
  * - Flag-type params emit `--name` when checked
+ *
+ * All param values are shell-escaped to prevent injection.
  */
 export function buildCommand(
   tool: ToolDefinition,
@@ -579,12 +1013,12 @@ export function buildCommand(
         }
       } else if (value) {
         if (param.flag) {
-          // Named flag: --query "search term"
+          // Named flag: --query value
           parts.push(param.flag);
-          parts.push(value.includes(" ") ? `"${value}"` : value);
+          parts.push(shellEscape(value));
         } else {
           // Positional argument
-          parts.push(value.includes(" ") ? `"${value}"` : value);
+          parts.push(shellEscape(value));
         }
       }
     }

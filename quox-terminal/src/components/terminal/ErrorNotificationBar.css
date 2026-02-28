@@ -107,3 +107,13 @@
 .error-notification-bar__btn--dismiss:hover {
   color: #a1a1aa;
 }
+
+.error-notification-bar__btn--tool {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  font-size: 0.68rem;
+}
+
+.error-notification-bar__btn--tool:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
