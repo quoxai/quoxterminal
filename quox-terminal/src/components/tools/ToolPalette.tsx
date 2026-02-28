@@ -25,15 +25,13 @@ interface ToolPaletteProps {
 }
 
 const CATEGORY_ORDER: ToolCategory[] = [
+  "tui",
   "fleet",
-  "ops",
   "ai",
   "workflows",
   "memory",
-  "secrets",
   "monitoring",
   "admin",
-  "tui",
 ];
 
 export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPaletteProps) {
@@ -138,12 +136,17 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
               {suggestedTools.map((tool) => (
                 <button
                   key={`suggested-${tool.id}`}
-                  className="tool-palette__tool-btn"
+                  className={`tool-palette__tool-btn ${tool.isTui ? "tool-palette__tool-btn--tui" : ""}`}
                   onClick={() => handleToolClick(tool)}
                   title={`${tool.name}: ${tool.description}`}
                 >
                   <div className="tool-palette__tool-info">
-                    <span className="tool-palette__tool-name">{tool.name}</span>
+                    <span className="tool-palette__tool-name">
+                      {tool.name}
+                      {tool.isTui && (
+                        <span className="tool-palette__tui-badge">TUI</span>
+                      )}
+                    </span>
                     <span className="tool-palette__tool-desc">{tool.description}</span>
                   </div>
                   <svg
@@ -196,13 +199,16 @@ export default function ToolPalette({ onClose, onExecute, paneContext }: ToolPal
                   {tools.map((tool) => (
                     <button
                       key={tool.id}
-                      className="tool-palette__tool-btn"
+                      className={`tool-palette__tool-btn ${tool.isTui ? "tool-palette__tool-btn--tui" : ""}`}
                       onClick={() => handleToolClick(tool)}
                       title={`${tool.name}: ${tool.description}`}
                     >
                       <div className="tool-palette__tool-info">
                         <span className="tool-palette__tool-name">
                           {tool.name}
+                          {tool.isTui && (
+                            <span className="tool-palette__tui-badge">TUI</span>
+                          )}
                         </span>
                         <span className="tool-palette__tool-desc">
                           {tool.description}

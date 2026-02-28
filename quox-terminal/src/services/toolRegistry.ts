@@ -2,24 +2,27 @@
  * toolRegistry.ts — Static registry of Quox CLI tools
  *
  * Provides tool definitions for the Tool Palette sidebar.
- * Each tool maps to a CLI command that can be executed in a terminal pane.
+ * Each tool maps to a `quox` CLI subcommand that can be executed in a terminal pane.
+ *
+ * All commands use the `quox` binary. There are no separate binaries
+ * (bastion, quoxagent, quoxflow do not exist as standalone CLIs).
  */
 
 export type ToolCategory =
+  | "tui"
   | "fleet"
-  | "ops"
   | "ai"
   | "workflows"
   | "memory"
-  | "secrets"
   | "monitoring"
-  | "admin"
-  | "tui";
+  | "admin";
 
 export interface ToolParam {
   name: string;
   label: string;
   type: "text" | "select" | "flag";
+  /** CLI flag name (e.g., "--query"). If omitted, value is appended positionally. */
+  flag?: string;
   placeholder?: string;
   options?: { label: string; value: string }[];
   required?: boolean;
@@ -37,6 +40,8 @@ export interface ToolDefinition {
   requiresSsh?: boolean;
   icon?: string;
   tags?: string[];
+  /** Tool launches an interactive TUI or live-updating display */
+  isTui?: boolean;
   contextMatch?: {
     mode?: "local" | "ssh";
     hostPattern?: string;
@@ -51,15 +56,13 @@ export interface PaneContext {
 }
 
 const CATEGORY_LABELS: Record<ToolCategory, string> = {
+  tui: "Interactive TUI",
   fleet: "Fleet & Infrastructure",
-  ops: "Operations & Deployment",
   ai: "AI & Chat",
-  workflows: "Workflow Engine",
-  memory: "Memory & Knowledge",
-  secrets: "Secrets & Vault",
+  workflows: "Workflows & Runs",
+  memory: "Memory & Entities",
   monitoring: "Monitoring & Health",
   admin: "Admin & Config",
-  tui: "Interactive TUI",
 };
 
 export function getCategoryLabel(category: ToolCategory): string {
@@ -67,203 +70,198 @@ export function getCategoryLabel(category: ToolCategory): string {
 }
 
 const TOOLS: ToolDefinition[] = [
-  // ── Fleet ──────────────────────────────────────────────────────────────
+  // ── Interactive TUI (highlighted at top) ──────────────────────────────
   {
-    id: "fleet-list",
-    name: "Fleet List",
-    description: "List all fleet agents",
-    category: "fleet",
+    id: "tui-quox",
+    name: "Quox TUI",
+    description: "Launch full interactive terminal UI",
+    category: "tui",
     command: "quox",
-    args: ["fleet", "list"],
+    args: ["tui"],
+    isTui: true,
   },
+  {
+    id: "tui-chat",
+    name: "Interactive Chat",
+    description: "Chat with CommanderQ AI (interactive REPL)",
+    category: "tui",
+    command: "quox",
+    args: ["chat"],
+    isTui: true,
+  },
+  {
+    id: "tui-fleet-watch",
+    name: "Fleet Watch",
+    description: "Live fleet status dashboard (auto-refreshing)",
+    category: "tui",
+    command: "quox",
+    args: ["watch", "fleet"],
+    isTui: true,
+  },
+  {
+    id: "tui-service-watch",
+    name: "Service Watch",
+    description: "Live service health dashboard (auto-refreshing)",
+    category: "tui",
+    command: "quox",
+    args: ["watch", "services"],
+    isTui: true,
+  },
+  {
+    id: "tui-login",
+    name: "Interactive Login",
+    description: "Authenticate with QuoxCORE (interactive prompts)",
+    category: "tui",
+    command: "quox",
+    args: ["login"],
+    isTui: true,
+  },
+
+  // ── Fleet & Infrastructure ────────────────────────────────────────────
   {
     id: "fleet-status",
     name: "Fleet Status",
-    description: "Show fleet status summary",
+    description: "Show fleet status table",
     category: "fleet",
     command: "quox",
     args: ["fleet", "status"],
   },
   {
-    id: "agent-status",
-    name: "Agent Status",
-    description: "Show quoxagent daemon status",
+    id: "fleet-summary",
+    name: "Fleet Summary",
+    description: "Show fleet health summary (healthy/degraded/down)",
     category: "fleet",
-    command: "quoxagent",
-    args: ["status"],
+    command: "quox",
+    args: ["fleet", "summary"],
+  },
+  {
+    id: "fleet-agents",
+    name: "Fleet Agents",
+    description: "List all fleet agents",
+    category: "fleet",
+    command: "quox",
+    args: ["fleet", "agents"],
+  },
+  {
+    id: "fleet-tools",
+    name: "Fleet Tools",
+    description: "List available fleet tools",
+    category: "fleet",
+    command: "quox",
+    args: ["fleet", "tools"],
+  },
+  {
+    id: "fleet-exec",
+    name: "Fleet Exec",
+    description: "Execute a fleet tool on a target host",
+    category: "fleet",
+    command: "quox",
+    args: ["fleet", "exec"],
+    params: [
+      {
+        name: "tool",
+        label: "Tool",
+        type: "text",
+        flag: "--tool",
+        placeholder: "system-info",
+        required: true,
+      },
+      {
+        name: "host",
+        label: "Host",
+        type: "text",
+        flag: "--host",
+        placeholder: "docker01",
+      },
+      {
+        name: "input",
+        label: "Input (JSON)",
+        type: "text",
+        flag: "--input",
+        placeholder: '{"key": "value"}',
+      },
+    ],
   },
   {
     id: "agent-list",
     name: "Agent List",
     description: "List registered agents",
     category: "fleet",
-    command: "quoxagent",
-    args: ["list"],
+    command: "quox",
+    args: ["agent", "list"],
   },
 
-  // ── Operations ─────────────────────────────────────────────────────────
-  {
-    id: "ops-deploy",
-    name: "Deploy Service",
-    description: "Deploy a service to the fleet",
-    category: "ops",
-    command: "quox",
-    args: ["deploy"],
-    tags: ["remote", "ops"],
-    params: [
-      {
-        name: "service",
-        label: "Service",
-        type: "select",
-        required: true,
-        options: [
-          { label: "Collector", value: "collector" },
-          { label: "Dashboard", value: "dashboard" },
-          { label: "Website", value: "website" },
-          { label: "Bastion", value: "bastion" },
-          { label: "Agent", value: "agent" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "ops-logs",
-    name: "Service Logs",
-    description: "View logs for a service",
-    category: "ops",
-    command: "quox",
-    args: ["logs"],
-    tags: ["remote", "ops"],
-    params: [
-      {
-        name: "service",
-        label: "Service",
-        type: "select",
-        required: true,
-        options: [
-          { label: "Collector", value: "collector" },
-          { label: "Dashboard", value: "dashboard" },
-          { label: "Website", value: "website" },
-          { label: "Bastion", value: "bastion" },
-          { label: "Agent", value: "agent" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "ops-restart",
-    name: "Restart Service",
-    description: "Restart a running service",
-    category: "ops",
-    command: "quox",
-    args: ["restart"],
-    tags: ["remote", "ops"],
-    params: [
-      {
-        name: "service",
-        label: "Service",
-        type: "select",
-        required: true,
-        options: [
-          { label: "Collector", value: "collector" },
-          { label: "Dashboard", value: "dashboard" },
-          { label: "Website", value: "website" },
-          { label: "Bastion", value: "bastion" },
-          { label: "Agent", value: "agent" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "bastion-exec",
-    name: "Bastion Exec",
-    description: "Execute command on remote host via bastion",
-    category: "ops",
-    command: "bastion",
-    args: ["exec"],
-    tags: ["remote", "ssh"],
-    contextMatch: { mode: "ssh" },
-    params: [
-      {
-        name: "host",
-        label: "Host",
-        type: "text",
-        placeholder: "docker01",
-        required: true,
-      },
-      {
-        name: "cmd",
-        label: "Command",
-        type: "text",
-        placeholder: "uptime",
-        required: true,
-      },
-    ],
-  },
-
-  // ── AI ─────────────────────────────────────────────────────────────────
+  // ── AI & Chat ─────────────────────────────────────────────────────────
   {
     id: "ai-chat",
-    name: "QuoxChat",
-    description: "Start interactive AI chat session",
+    name: "Quick Chat",
+    description: "Send a one-shot message to CommanderQ",
     category: "ai",
     command: "quox",
     args: ["chat"],
-  },
-  {
-    id: "ai-ask",
-    name: "Quick Ask",
-    description: "Ask a one-shot question to AI",
-    category: "ai",
-    command: "quox",
-    args: ["ask"],
     params: [
       {
-        name: "question",
-        label: "Question",
+        name: "message",
+        label: "Message",
         type: "text",
         placeholder: "What is the fleet status?",
         required: true,
       },
     ],
   },
+  {
+    id: "ai-chat-status",
+    name: "Chat Status",
+    description: "Check AI chat service availability",
+    category: "ai",
+    command: "quox",
+    args: ["chat-status"],
+  },
 
-  // ── Workflows ──────────────────────────────────────────────────────────
+  // ── Workflows & Runs ──────────────────────────────────────────────────
   {
     id: "wf-list",
     name: "List Workflows",
-    description: "List all available workflows",
+    description: "List all workflows",
     category: "workflows",
-    command: "quoxflow",
-    args: ["list"],
+    command: "quox",
+    args: ["workflow", "list"],
   },
   {
     id: "wf-run",
     name: "Run Workflow",
-    description: "Execute a workflow by name",
+    description: "Execute a workflow by ID",
     category: "workflows",
-    command: "quoxflow",
-    args: ["run"],
+    command: "quox",
+    args: ["workflow", "run"],
     params: [
       {
-        name: "workflow",
-        label: "Workflow",
+        name: "workflowId",
+        label: "Workflow ID",
         type: "text",
-        placeholder: "deploy-pipeline",
+        placeholder: "wf-abc123",
         required: true,
       },
     ],
   },
   {
-    id: "wf-status",
-    name: "Workflow Status",
+    id: "run-list",
+    name: "List Runs",
+    description: "List workflow run history",
+    category: "workflows",
+    command: "quox",
+    args: ["run", "list"],
+  },
+  {
+    id: "run-get",
+    name: "Run Status",
     description: "Check status of a workflow run",
     category: "workflows",
-    command: "quoxflow",
-    args: ["status"],
+    command: "quox",
+    args: ["run", "get"],
     params: [
       {
-        name: "id",
+        name: "runId",
         label: "Run ID",
         type: "text",
         placeholder: "run-abc123",
@@ -272,19 +270,44 @@ const TOOLS: ToolDefinition[] = [
     ],
   },
 
-  // ── Memory ─────────────────────────────────────────────────────────────
+  // ── Memory & Entities ─────────────────────────────────────────────────
   {
-    id: "mem-status",
-    name: "Memory Status",
-    description: "Show memory service status",
+    id: "mem-stats",
+    name: "Memory Stats",
+    description: "Show memory statistics",
     category: "memory",
     command: "quox",
-    args: ["memory", "status"],
+    args: ["memory", "stats"],
+    tags: ["diagnostic"],
+  },
+  {
+    id: "mem-list",
+    name: "Memory List",
+    description: "List stored memories",
+    category: "memory",
+    command: "quox",
+    args: ["memory", "list"],
+    params: [
+      {
+        name: "type",
+        label: "Type",
+        type: "select",
+        flag: "--type",
+        options: [
+          { label: "All", value: "" },
+          { label: "Fact", value: "fact" },
+          { label: "Entity", value: "entity" },
+          { label: "Decision", value: "decision" },
+          { label: "Preference", value: "preference" },
+          { label: "Observation", value: "observation" },
+        ],
+      },
+    ],
   },
   {
     id: "mem-search",
     name: "Memory Search",
-    description: "Search memory by query",
+    description: "Search memories by query",
     category: "memory",
     command: "quox",
     args: ["memory", "search"],
@@ -293,128 +316,111 @@ const TOOLS: ToolDefinition[] = [
         name: "query",
         label: "Query",
         type: "text",
+        flag: "--query",
         placeholder: "docker deployment",
         required: true,
       },
     ],
   },
   {
-    id: "mem-entities",
-    name: "Memory Entities",
-    description: "List known entities in memory",
+    id: "entity-list",
+    name: "Entity List",
+    description: "List knowledge graph entities",
     category: "memory",
     command: "quox",
-    args: ["memory", "entities"],
+    args: ["entity", "list"],
+  },
+  {
+    id: "entity-search",
+    name: "Entity Search",
+    description: "Search entities by query",
+    category: "memory",
+    command: "quox",
+    args: ["entity", "search"],
+    params: [
+      {
+        name: "query",
+        label: "Query",
+        type: "text",
+        flag: "--query",
+        placeholder: "nginx",
+        required: true,
+      },
+    ],
   },
 
-  // ── Secrets & Vault ────────────────────────────────────────────────────
+  // ── Monitoring & Health ───────────────────────────────────────────────
   {
-    id: "vault-list",
-    name: "Vault List",
-    description: "List credentials (masked)",
-    category: "secrets",
+    id: "mon-health",
+    name: "Service Health",
+    description: "Check health of all QuoxCORE services",
+    category: "monitoring",
     command: "quox",
-    args: ["vault", "list"],
-  },
-  {
-    id: "vault-stats",
-    name: "Vault Stats",
-    description: "Show vault health dashboard",
-    category: "secrets",
-    command: "quox",
-    args: ["vault", "stats"],
+    args: ["service", "health"],
     tags: ["diagnostic"],
   },
   {
-    id: "vault-test-all",
-    name: "Test All Credentials",
-    description: "Test all credential connections",
-    category: "secrets",
+    id: "mon-backup-list",
+    name: "Backup List",
+    description: "List available backups",
+    category: "monitoring",
     command: "quox",
-    args: ["vault", "test-all"],
+    args: ["backup", "list"],
   },
   {
-    id: "vault-expiring",
-    name: "Expiring Credentials",
-    description: "List credentials expiring soon",
-    category: "secrets",
+    id: "mon-backup-create",
+    name: "Create Backup",
+    description: "Create a new backup",
+    category: "monitoring",
     command: "quox",
-    args: ["vault", "expiring"],
+    args: ["backup", "create"],
     params: [
       {
-        name: "days",
-        label: "Days",
+        name: "label",
+        label: "Label",
         type: "text",
-        placeholder: "7",
-        default: "7",
+        flag: "--label",
+        placeholder: "daily-backup",
+      },
+      {
+        name: "type",
+        label: "Type",
+        type: "select",
+        flag: "--type",
+        options: [
+          { label: "Full", value: "full" },
+          { label: "Incremental", value: "incremental" },
+        ],
       },
     ],
   },
   {
-    id: "vault-scan",
-    name: "Vault Health Scan",
-    description: "Run health scan and show issues",
-    category: "secrets",
+    id: "mon-admin-stats",
+    name: "Platform Stats",
+    description: "Show platform statistics",
+    category: "monitoring",
     command: "quox",
-    args: ["vault", "scan"],
+    args: ["admin", "stats"],
     tags: ["diagnostic"],
   },
   {
-    id: "vault-activity",
-    name: "Vault Activity",
-    description: "Show vault audit trail",
-    category: "secrets",
+    id: "mon-inbox",
+    name: "Inbox",
+    description: "List pending approvals and tasks",
+    category: "monitoring",
     command: "quox",
-    args: ["vault", "activity"],
+    args: ["inbox", "list"],
+  },
+  {
+    id: "mon-inbox-stats",
+    name: "Inbox Stats",
+    description: "Show inbox statistics",
+    category: "monitoring",
+    command: "quox",
+    args: ["inbox", "stats"],
   },
 
-  // ── Monitoring ─────────────────────────────────────────────────────────
-  {
-    id: "mon-health",
-    name: "Platform Health",
-    description: "Check overall platform health",
-    category: "monitoring",
-    command: "quox",
-    args: ["health"],
-    tags: ["diagnostic"],
-  },
-  {
-    id: "mon-agent-health",
-    name: "Agent Health",
-    description: "Check quoxagent health endpoint",
-    category: "monitoring",
-    command: "quoxagent",
-    args: ["health"],
-    tags: ["diagnostic"],
-  },
-  {
-    id: "mon-bastion-status",
-    name: "Bastion Status",
-    description: "Check bastion connectivity",
-    category: "monitoring",
-    command: "bastion",
-    args: ["status"],
-    tags: ["remote", "ssh"],
-    contextMatch: { mode: "ssh" },
-  },
-
-  // ── Admin ──────────────────────────────────────────────────────────────
-  {
-    id: "admin-config",
-    name: "Show Config",
-    description: "Display current configuration",
-    category: "admin",
-    command: "quox",
-    args: ["config", "show"],
-  },
-  {
-    id: "admin-login",
-    name: "Login",
-    description: "Authenticate with QuoxCORE",
-    category: "admin",
-    command: "quox",
-    args: ["login"],
-  },
+  // ── Admin & Config ────────────────────────────────────────────────────
   {
     id: "admin-whoami",
     name: "Who Am I",
@@ -423,21 +429,53 @@ const TOOLS: ToolDefinition[] = [
     command: "quox",
     args: ["whoami"],
   },
-
-  // ── TUI ────────────────────────────────────────────────────────────────
   {
-    id: "tui-bastion",
-    name: "Bastion TUI",
-    description: "Launch full bastion terminal UI",
-    category: "tui",
-    command: "bastion",
+    id: "admin-config",
+    name: "Show Config",
+    description: "Display current CLI configuration",
+    category: "admin",
+    command: "quox",
+    args: ["config", "get"],
   },
   {
-    id: "tui-quox",
-    name: "Quox Interactive",
-    description: "Launch interactive Quox CLI",
-    category: "tui",
+    id: "admin-logout",
+    name: "Logout",
+    description: "End current session",
+    category: "admin",
     command: "quox",
+    args: ["logout"],
+  },
+  {
+    id: "admin-org-list",
+    name: "Organizations",
+    description: "List organizations",
+    category: "admin",
+    command: "quox",
+    args: ["org", "list"],
+  },
+  {
+    id: "admin-keys",
+    name: "API Keys",
+    description: "List API keys",
+    category: "admin",
+    command: "quox",
+    args: ["admin", "key", "list"],
+  },
+  {
+    id: "admin-audit",
+    name: "Audit Log",
+    description: "View admin audit logs",
+    category: "admin",
+    command: "quox",
+    args: ["admin", "logs"],
+  },
+  {
+    id: "admin-file-stats",
+    name: "File Stats",
+    description: "Show file storage statistics",
+    category: "admin",
+    command: "quox",
+    args: ["file", "stats"],
   },
 ];
 
@@ -461,10 +499,9 @@ export function getToolById(id: string): ToolDefinition | undefined {
 }
 
 export function getSuggestedTools(context: PaneContext): ToolDefinition[] {
-  // Disconnected pane — only admin tools (login, config)
   if (!context.connected) {
     return TOOLS.filter(
-      (t) => t.id === "admin-login" || t.id === "admin-config",
+      (t) => t.id === "tui-login" || t.id === "admin-config",
     );
   }
 
@@ -486,10 +523,10 @@ export function getSuggestedTools(context: PaneContext): ToolDefinition[] {
   }
 
   if (context.mode === "ssh") {
-    // SSH pane — ops tools, monitoring, and tools matching SSH mode
+    // SSH pane — fleet tools and monitoring
     for (const tool of TOOLS) {
+      if (tool.category === "fleet") add(tool);
       if (tool.contextMatch?.mode === "ssh") add(tool);
-      if (tool.tags?.includes("ops")) add(tool);
     }
     // Host pattern matching
     if (context.hostId) {
@@ -503,16 +540,26 @@ export function getSuggestedTools(context: PaneContext): ToolDefinition[] {
       }
     }
   } else {
-    // Local pane — admin tools, TUI tools
+    // Local pane — TUI tools first, then admin
+    for (const tool of TOOLS) {
+      if (tool.isTui) add(tool);
+    }
     for (const tool of TOOLS) {
       if (tool.category === "admin") add(tool);
-      if (tool.category === "tui") add(tool);
     }
   }
 
   return suggestions.slice(0, 5);
 }
 
+/**
+ * Build the CLI command string from a tool definition and parameter values.
+ *
+ * Supports both positional args and named flags:
+ * - If a param has `flag` set (e.g., "--query"), emits `--query value`
+ * - If a param has no `flag`, appends the value positionally
+ * - Flag-type params emit `--name` when checked
+ */
 export function buildCommand(
   tool: ToolDefinition,
   paramValues: Record<string, string> = {},
@@ -528,10 +575,17 @@ export function buildCommand(
       const value = paramValues[param.name] ?? param.default ?? "";
       if (param.type === "flag") {
         if (value === "true" || value === param.name) {
-          parts.push(`--${param.name}`);
+          parts.push(param.flag || `--${param.name}`);
         }
       } else if (value) {
-        parts.push(value);
+        if (param.flag) {
+          // Named flag: --query "search term"
+          parts.push(param.flag);
+          parts.push(value.includes(" ") ? `"${value}"` : value);
+        } else {
+          // Positional argument
+          parts.push(value.includes(" ") ? `"${value}"` : value);
+        }
       }
     }
   }

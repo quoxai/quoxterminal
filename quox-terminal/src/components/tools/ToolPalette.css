@@ -250,6 +250,44 @@
   color: #10b981;
 }
 
+/* ═══ TUI Badge & Highlight ═══ */
+
+.tool-palette__tool-btn--tui {
+  border-left: 2px solid rgba(139, 92, 246, 0.5);
+  padding-left: 28px;
+}
+
+.tool-palette__tool-btn--tui:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.tool-palette__tool-btn--tui:active {
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.tool-palette__tool-btn--tui .tool-palette__play-icon {
+  color: rgba(139, 92, 246, 0.4);
+}
+
+.tool-palette__tool-btn--tui:hover .tool-palette__play-icon {
+  color: #8b5cf6;
+}
+
+.tool-palette__tui-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 3px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
 /* ═══ Scrollbar ═══ */
 
 .tool-palette__list::-webkit-scrollbar { width: 5px; }

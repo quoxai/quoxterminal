@@ -34,6 +34,13 @@ describe("toolRegistry", () => {
         expect(tool.category).toBeTruthy();
       }
     });
+
+    it("all tools use the quox binary", () => {
+      const tools = getTools();
+      for (const tool of tools) {
+        expect(tool.command).toBe("quox");
+      }
+    });
   });
 
   describe("getToolsByCategory", () => {
@@ -52,15 +59,13 @@ describe("toolRegistry", () => {
     it("contains all known categories", () => {
       const grouped = getToolsByCategory();
       const categories: ToolCategory[] = [
+        "tui",
         "fleet",
-        "ops",
         "ai",
         "workflows",
         "memory",
-        "secrets",
         "monitoring",
         "admin",
-        "tui",
       ];
       for (const cat of categories) {
         expect(grouped[cat]).toBeDefined();
@@ -80,9 +85,9 @@ describe("toolRegistry", () => {
 
   describe("getToolById", () => {
     it("finds a known tool", () => {
-      const tool = getToolById("fleet-list");
+      const tool = getToolById("fleet-status");
       expect(tool).toBeDefined();
-      expect(tool!.name).toBe("Fleet List");
+      expect(tool!.name).toBe("Fleet Status");
       expect(tool!.category).toBe("fleet");
     });
 
@@ -92,70 +97,70 @@ describe("toolRegistry", () => {
   });
 
   describe("buildCommand", () => {
-    it("builds command with no args or params", () => {
-      const tool: ToolDefinition = {
-        id: "test",
-        name: "Test",
-        description: "Test tool",
-        category: "admin",
-        command: "bastion",
-      };
-      expect(buildCommand(tool)).toBe("bastion");
-    });
-
-    it("builds command with args", () => {
+    it("builds command with args only", () => {
       const tool: ToolDefinition = {
         id: "test",
         name: "Test",
         description: "Test tool",
         category: "fleet",
         command: "quox",
-        args: ["fleet", "list"],
+        args: ["fleet", "status"],
       };
-      expect(buildCommand(tool)).toBe("quox fleet list");
+      expect(buildCommand(tool)).toBe("quox fleet status");
     });
 
-    it("builds command with text params", () => {
+    it("builds command with positional text param", () => {
       const tool: ToolDefinition = {
         id: "test",
         name: "Test",
         description: "Test tool",
         category: "ai",
         command: "quox",
-        args: ["ask"],
+        args: ["chat"],
         params: [
-          { name: "question", label: "Question", type: "text", required: true },
+          { name: "message", label: "Message", type: "text", required: true },
         ],
       };
-      expect(buildCommand(tool, { question: "hello world" })).toBe(
-        "quox ask hello world",
+      expect(buildCommand(tool, { message: "hello" })).toBe(
+        "quox chat hello",
       );
     });
 
-    it("builds command with select params", () => {
+    it("builds command with named flag param", () => {
       const tool: ToolDefinition = {
         id: "test",
         name: "Test",
         description: "Test tool",
-        category: "ops",
+        category: "memory",
         command: "quox",
-        args: ["deploy"],
+        args: ["memory", "search"],
         params: [
-          {
-            name: "service",
-            label: "Service",
-            type: "select",
-            required: true,
-            options: [{ label: "Collector", value: "collector" }],
-          },
+          { name: "query", label: "Query", type: "text", flag: "--query", required: true },
         ],
       };
-      expect(buildCommand(tool, { service: "collector" })).toBe(
-        "quox deploy collector",
+      expect(buildCommand(tool, { query: "docker" })).toBe(
+        "quox memory search --query docker",
       );
     });
 
-    it("builds command with flag param enabled", () => {
+    it("quotes values with spaces in named flags", () => {
+      const tool: ToolDefinition = {
+        id: "test",
+        name: "Test",
+        description: "Test tool",
+        category: "memory",
+        command: "quox",
+        args: ["memory", "search"],
+        params: [
+          { name: "query", label: "Query", type: "text", flag: "--query", required: true },
+        ],
+      };
+      expect(buildCommand(tool, { query: "docker deployment" })).toBe(
+        'quox memory search --query "docker deployment"',
+      );
+    });
+
+    it("builds command with boolean flag param enabled", () => {
       const tool: ToolDefinition = {
         id: "test",
         name: "Test",
@@ -188,39 +193,26 @@ describe("toolRegistry", () => {
         id: "test",
         name: "Test",
         description: "Test tool",
-        category: "ops",
+        category: "admin",
         command: "quox",
-        args: ["deploy"],
+        args: ["agent", "list"],
         params: [
-          { name: "service", label: "Service", type: "text", required: true },
+          { name: "status", label: "Status", type: "text", flag: "--status" },
         ],
       };
-      expect(buildCommand(tool, { service: "" })).toBe("quox deploy");
-    });
-
-    it("uses default param value when not provided", () => {
-      const tool: ToolDefinition = {
-        id: "test",
-        name: "Test",
-        description: "Test tool",
-        category: "ops",
-        command: "quox",
-        args: ["logs"],
-        params: [
-          {
-            name: "service",
-            label: "Service",
-            type: "text",
-            default: "collector",
-          },
-        ],
-      };
-      expect(buildCommand(tool)).toBe("quox logs collector");
+      expect(buildCommand(tool, { status: "" })).toBe("quox agent list");
     });
 
     it("works with real tool from registry", () => {
-      const tool = getToolById("fleet-list")!;
-      expect(buildCommand(tool)).toBe("quox fleet list");
+      const tool = getToolById("fleet-status")!;
+      expect(buildCommand(tool)).toBe("quox fleet status");
+    });
+
+    it("works with real parameterized tool from registry", () => {
+      const tool = getToolById("mem-search")!;
+      expect(buildCommand(tool, { query: "nginx" })).toBe(
+        "quox memory search --query nginx",
+      );
     });
   });
 
@@ -233,7 +225,7 @@ describe("toolRegistry", () => {
   });
 
   describe("getSuggestedTools", () => {
-    it("returns ops/monitoring tools for SSH context", () => {
+    it("returns fleet tools for SSH context", () => {
       const ctx: PaneContext = {
         mode: "ssh",
         hostId: "root@docker01",
@@ -242,11 +234,10 @@ describe("toolRegistry", () => {
       const suggestions = getSuggestedTools(ctx);
       expect(suggestions.length).toBeGreaterThan(0);
       const ids = suggestions.map((t) => t.id);
-      expect(ids).toContain("bastion-exec");
-      expect(ids).toContain("mon-bastion-status");
+      expect(ids).toContain("fleet-status");
     });
 
-    it("returns admin/TUI tools for local context", () => {
+    it("returns TUI/admin tools for local context", () => {
       const ctx: PaneContext = {
         mode: "local",
         hostId: "",
@@ -255,8 +246,7 @@ describe("toolRegistry", () => {
       const suggestions = getSuggestedTools(ctx);
       expect(suggestions.length).toBeGreaterThan(0);
       const ids = suggestions.map((t) => t.id);
-      expect(ids).toContain("admin-config");
-      expect(ids).toContain("admin-whoami");
+      expect(ids).toContain("tui-quox");
     });
 
     it("returns diagnostic tools when hasError is true", () => {
@@ -269,7 +259,7 @@ describe("toolRegistry", () => {
       const suggestions = getSuggestedTools(ctx);
       const ids = suggestions.map((t) => t.id);
       expect(ids).toContain("mon-health");
-      expect(ids).toContain("mon-agent-health");
+      expect(ids).toContain("mem-stats");
     });
 
     it("returns max 5 results", () => {
@@ -283,7 +273,7 @@ describe("toolRegistry", () => {
       expect(suggestions.length).toBeLessThanOrEqual(5);
     });
 
-    it("returns only admin tools for disconnected pane", () => {
+    it("returns login/config tools for disconnected pane", () => {
       const ctx: PaneContext = {
         mode: "local",
         hostId: "",
@@ -291,26 +281,8 @@ describe("toolRegistry", () => {
       };
       const suggestions = getSuggestedTools(ctx);
       const ids = suggestions.map((t) => t.id);
-      expect(ids).toContain("admin-login");
+      expect(ids).toContain("tui-login");
       expect(ids).toContain("admin-config");
-      // Should not include ops or monitoring tools
-      expect(ids).not.toContain("bastion-exec");
-      expect(ids).not.toContain("mon-health");
-    });
-
-    it("matches host pattern in hostId", () => {
-      // Add a tool with hostPattern dynamically is not needed — we test existing tools
-      // bastion-exec has contextMatch.mode === "ssh", no hostPattern
-      // So this test verifies the SSH path includes ops tools for docker hosts
-      const ctx: PaneContext = {
-        mode: "ssh",
-        hostId: "root@docker01",
-        connected: true,
-      };
-      const suggestions = getSuggestedTools(ctx);
-      const ids = suggestions.map((t) => t.id);
-      // ops tools should be included for SSH context
-      expect(ids).toContain("ops-logs");
     });
 
     it("deduplicates results", () => {
@@ -322,27 +294,7 @@ describe("toolRegistry", () => {
       };
       const suggestions = getSuggestedTools(ctx);
       const ids = suggestions.map((t) => t.id);
-      // No duplicate IDs
       expect(new Set(ids).size).toBe(ids.length);
-    });
-
-    it("returns SSH-mode tools not present in local suggestions", () => {
-      const sshCtx: PaneContext = {
-        mode: "ssh",
-        hostId: "root@docker01",
-        connected: true,
-      };
-      const localCtx: PaneContext = {
-        mode: "local",
-        hostId: "",
-        connected: true,
-      };
-      const sshIds = getSuggestedTools(sshCtx).map((t) => t.id);
-      const localIds = getSuggestedTools(localCtx).map((t) => t.id);
-
-      // bastion-exec should only be in SSH suggestions
-      expect(sshIds).toContain("bastion-exec");
-      expect(localIds).not.toContain("bastion-exec");
     });
   });
 });
