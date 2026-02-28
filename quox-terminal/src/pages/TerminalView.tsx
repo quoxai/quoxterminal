@@ -327,31 +327,28 @@ export default function TerminalView() {
 
   const handlePaneClose = useCallback(
     (paneId: string) => {
-      // Find the pane being closed and kill its session
-      const pane = panes.find((p) => p.id === paneId);
-      if (pane?.sessionId) {
-        if (pane.mode === "ssh") {
-          sshDisconnect(pane.sessionId).catch(() => {});
-        } else {
-          ptyKill(pane.sessionId).catch(() => {});
-        }
-      }
-
-      // Check how many other connected sessions would be lost by downgrading
+      // Switching to "single" removes panes at index 1+.
+      // getSessionsToLose counts connected panes that will be removed.
       const sessionsToLose = getSessionsToLose(panes, "single");
+
+      // Ask BEFORE killing anything
       if (sessionsToLose > 0) {
         const confirmed = window.confirm(
           `This will close ${sessionsToLose} active session${sessionsToLose > 1 ? "s" : ""}. Continue?`,
         );
         if (!confirmed) return;
+      }
 
-        // Kill PTYs of panes that will be removed (all except first)
-        panes.slice(1).forEach((p) => {
-          if (p.sessionId && p.id !== paneId) {
+      // Kill sessions of panes that will be removed (index 1+)
+      panes.slice(1).forEach((p) => {
+        if (p.sessionId) {
+          if (p.mode === "ssh") {
+            sshDisconnect(p.sessionId).catch(() => {});
+          } else {
             ptyKill(p.sessionId).catch(() => {});
           }
-        });
-      }
+        }
+      });
 
       setLayout("single");
     },
@@ -464,8 +461,8 @@ export default function TerminalView() {
 
   useEffect(() => {
     if (sessionCount === 0) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
+    const handler = () => {
+      // Save state and clean up — don't block the close
       saveSessionState(workspaces);
       killAllSessions(workspaces);
     };
