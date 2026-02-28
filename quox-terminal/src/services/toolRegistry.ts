@@ -11,6 +11,7 @@ export type ToolCategory =
   | "ai"
   | "workflows"
   | "memory"
+  | "secrets"
   | "monitoring"
   | "admin"
   | "tui";
@@ -55,6 +56,7 @@ const CATEGORY_LABELS: Record<ToolCategory, string> = {
   ai: "AI & Chat",
   workflows: "Workflow Engine",
   memory: "Memory & Knowledge",
+  secrets: "Secrets & Vault",
   monitoring: "Monitoring & Health",
   admin: "Admin & Config",
   tui: "Interactive TUI",
@@ -303,6 +305,67 @@ const TOOLS: ToolDefinition[] = [
     category: "memory",
     command: "quox",
     args: ["memory", "entities"],
+  },
+
+  // ── Secrets & Vault ────────────────────────────────────────────────────
+  {
+    id: "vault-list",
+    name: "Vault List",
+    description: "List credentials (masked)",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "list"],
+  },
+  {
+    id: "vault-stats",
+    name: "Vault Stats",
+    description: "Show vault health dashboard",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "stats"],
+    tags: ["diagnostic"],
+  },
+  {
+    id: "vault-test-all",
+    name: "Test All Credentials",
+    description: "Test all credential connections",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "test-all"],
+  },
+  {
+    id: "vault-expiring",
+    name: "Expiring Credentials",
+    description: "List credentials expiring soon",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "expiring"],
+    params: [
+      {
+        name: "days",
+        label: "Days",
+        type: "text",
+        placeholder: "7",
+        default: "7",
+      },
+    ],
+  },
+  {
+    id: "vault-scan",
+    name: "Vault Health Scan",
+    description: "Run health scan and show issues",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "scan"],
+    tags: ["diagnostic"],
+  },
+  {
+    id: "vault-activity",
+    name: "Vault Activity",
+    description: "Show vault audit trail",
+    category: "secrets",
+    command: "quox",
+    args: ["vault", "activity"],
   },
 
   // ── Monitoring ─────────────────────────────────────────────────────────

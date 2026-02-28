@@ -30,6 +30,7 @@ const CATEGORY_ORDER: ToolCategory[] = [
   "ai",
   "workflows",
   "memory",
+  "secrets",
   "monitoring",
   "admin",
   "tui",

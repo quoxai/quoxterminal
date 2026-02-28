@@ -57,6 +57,7 @@ describe("toolRegistry", () => {
         "ai",
         "workflows",
         "memory",
+        "secrets",
         "monitoring",
         "admin",
         "tui",
