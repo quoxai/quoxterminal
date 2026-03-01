@@ -5,6 +5,7 @@
  * Dispatches to specialized cards for Read, Edit, Bash when available.
  */
 
+import type { ReactElement } from "react";
 import { type ToolCall } from "../../services/claudeOutputParser";
 import { getToolStyle } from "../../config/claudeConfig";
 import EditDiffCard from "./EditDiffCard";
@@ -82,7 +83,7 @@ function formatDuration(ms?: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function getToolIcon(icon: string): JSX.Element {
+function getToolIcon(icon: string): ReactElement {
   switch (icon) {
     case "file":
       return (

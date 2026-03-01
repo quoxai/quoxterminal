@@ -40,7 +40,7 @@ export default function ClaudePaneEmbed({
     if (hasSpawned.current) return;
     hasSpawned.current = true;
 
-    const workingDir = cwd || process.env.HOME || "/";
+    const workingDir = cwd || "/";
     spawn(workingDir, extraArgs).then(() => {
       onConnect?.();
     });
@@ -128,7 +128,7 @@ export default function ClaudePaneEmbed({
             className="claude-pane__error-retry"
             onClick={() => {
               hasSpawned.current = false;
-              const workingDir = cwd || process.env.HOME || "/";
+              const workingDir = cwd || "/";
               spawn(workingDir, extraArgs);
             }}
           >
