@@ -1,0 +1,237 @@
+/* ClaudeConversation — Scrollable message stream */
+
+.claude-conv {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+.claude-conv--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Welcome state */
+.claude-conv__welcome {
+  text-align: center;
+  color: #475569;
+}
+
+.claude-conv__welcome-icon {
+  margin-bottom: 12px;
+  color: #38bdf8;
+  opacity: 0.5;
+}
+
+.claude-conv__welcome-text {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Messages */
+.claude-conv__msg {
+  margin-bottom: 12px;
+}
+
+.claude-conv__msg--user {
+  /* User messages */
+}
+
+.claude-conv__msg--assistant {
+  /* Assistant messages */
+}
+
+.claude-conv__msg--system {
+  /* System messages */
+}
+
+/* User message */
+.claude-conv__user-msg {
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(56, 189, 248, 0.12);
+}
+
+.claude-conv__role {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #38bdf8;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.claude-conv__text {
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Assistant message */
+.claude-conv__assistant-msg {
+  /* No background — text flows naturally */
+}
+
+.claude-conv__markdown {
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+.claude-conv__markdown p {
+  margin: 0 0 8px;
+}
+
+.claude-conv__markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.claude-conv__markdown code {
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 12px;
+  background: rgba(30, 41, 59, 0.8);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #38bdf8;
+}
+
+.claude-conv__markdown pre {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 10px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.claude-conv__markdown pre code {
+  background: none;
+  padding: 0;
+  color: #cbd5e1;
+}
+
+.claude-conv__markdown ul,
+.claude-conv__markdown ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.claude-conv__markdown li {
+  margin: 2px 0;
+}
+
+.claude-conv__markdown a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.claude-conv__markdown a:hover {
+  text-decoration: underline;
+}
+
+.claude-conv__markdown strong {
+  color: #f1f5f9;
+}
+
+.claude-conv__markdown h1,
+.claude-conv__markdown h2,
+.claude-conv__markdown h3 {
+  color: #f1f5f9;
+  margin: 12px 0 6px;
+  font-size: 14px;
+}
+
+.claude-conv__markdown h1 {
+  font-size: 16px;
+}
+
+/* Typing indicator */
+.claude-conv__typing {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px 0;
+  align-items: center;
+}
+
+.claude-conv__typing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #38bdf8;
+  animation: claude-typing-bounce 1.4s infinite ease-in-out;
+}
+
+.claude-conv__typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.claude-conv__typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes claude-typing-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* System message */
+.claude-conv__system-msg {
+  font-size: 11px;
+  color: #64748b;
+  padding: 4px 8px;
+  border-left: 2px solid #334155;
+  margin: 4px 0;
+}
+
+/* Status line */
+.claude-conv__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  padding: 8px 0;
+}
+
+.claude-conv__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(56, 189, 248, 0.2);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: claude-spin 0.8s linear infinite;
+}
+
+@keyframes claude-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Scroll-to-bottom button */
+.claude-conv__scroll-btn {
+  position: sticky;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: block;
+  margin: 0 auto;
+  padding: 4px 12px;
+  font-size: 11px;
+  background: rgba(30, 41, 59, 0.9);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  z-index: 1;
+  transition: all 0.15s ease;
+}
+
+.claude-conv__scroll-btn:hover {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}

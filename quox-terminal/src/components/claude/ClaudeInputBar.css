@@ -1,0 +1,64 @@
+/* ClaudeInputBar — Message input */
+
+.claude-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.claude-input--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.claude-input__textarea {
+  flex: 1;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  min-height: 36px;
+  max-height: 150px;
+  transition: border-color 0.15s ease;
+}
+
+.claude-input__textarea:focus {
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.claude-input__textarea::placeholder {
+  color: #475569;
+}
+
+.claude-input__submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.claude-input__submit:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.3);
+}
+
+.claude-input__submit:disabled {
+  opacity: 0.3;
+  cursor: default;
+}

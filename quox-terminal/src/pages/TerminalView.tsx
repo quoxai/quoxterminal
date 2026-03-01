@@ -281,6 +281,15 @@ export default function TerminalView() {
         case "toggleVim":
           setVimEnabled((prev) => !prev);
           break;
+        case "toggleClaudeMode": {
+          // Toggle Claude mode on focused pane
+          const fp = panes.find((p) => p.id === focusedPaneId);
+          if (fp) {
+            const newMode = fp.mode === "claude" ? "local" : "claude";
+            updatePane(fp.id, { mode: newMode, hostId: "" });
+          }
+          break;
+        }
         case "toggleTools":
           setToolsOpen((prev) => !prev);
           break;

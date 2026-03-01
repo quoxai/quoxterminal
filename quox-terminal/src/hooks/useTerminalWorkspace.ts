@@ -27,12 +27,16 @@ export type LayoutPreset =
   | "split-top"
   | "quad";
 
+export type PaneMode = "local" | "ssh" | "claude";
+
 export interface PaneState {
   id: string;
-  mode: string;
+  mode: PaneMode | string;
   hostId: string;
   connected: boolean;
   sessionId: string | null;
+  /** Claude session ID (separate from PTY/SSH sessionId) */
+  claudeSessionId?: string | null;
 }
 
 export interface WorkspaceState {
@@ -75,6 +79,7 @@ export function createDefaultPane(
     hostId: "",
     connected: false,
     sessionId: null,
+    claudeSessionId: null,
     ...overrides,
   };
 }
@@ -271,6 +276,10 @@ export default function useTerminalWorkspace() {
           if (updates.mode === "local") updated.hostId = "";
           if (updates.mode !== undefined || updates.hostId !== undefined) {
             updated.sessionId = null;
+          }
+          // Clear claude session on mode change away from claude
+          if (updates.mode !== undefined && updates.mode !== "claude") {
+            updated.claudeSessionId = null;
           }
           return updated;
         }),

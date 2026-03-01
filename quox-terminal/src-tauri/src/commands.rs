@@ -642,3 +642,72 @@ pub async fn bastion_fleet_summary(app_handle: AppHandle) -> Result<serde_json::
 
     Ok(summary)
 }
+
+// ── Claude Mode Commands ─────────────────────────────────────────────────────
+
+/// Spawn a new Claude CLI session with `--output-format stream-json`.
+/// Returns the session UUID. Events are emitted as `claude-event-{id}`.
+#[tauri::command]
+pub fn claude_spawn(
+    cwd: String,
+    args: Option<Vec<String>>,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<String, String> {
+    use crate::claude::session::ClaudeSession;
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let session = ClaudeSession::spawn(
+        session_id.clone(),
+        &cwd,
+        args,
+        app_handle,
+    )?;
+
+    let mut sessions = state
+        .claude_sessions
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+    sessions.insert(session_id.clone(), session);
+
+    Ok(session_id)
+}
+
+/// Write data to a Claude CLI session's stdin (user messages, approvals).
+#[tauri::command]
+pub fn claude_write(
+    session_id: String,
+    data: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut sessions = state
+        .claude_sessions
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+    let session = sessions
+        .get_mut(&session_id)
+        .ok_or_else(|| format!("Claude session not found: {}", session_id))?;
+    session.write(data.as_bytes())
+}
+
+/// Kill a Claude CLI session.
+#[tauri::command]
+pub fn claude_kill(
+    session_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut sessions = state
+        .claude_sessions
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+    sessions.remove(&session_id);
+    Ok(())
+}
+
+/// Detect whether a directory is a Claude Code project.
+#[tauri::command]
+pub fn detect_claude_project(
+    cwd: String,
+) -> Result<crate::claude::detect::ClaudeProjectInfo, String> {
+    Ok(crate::claude::detect::detect_claude_project(&cwd))
+}

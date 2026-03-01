@@ -1,0 +1,20 @@
+/* ClaudeProjectBadge — Subtle project indicator */
+
+.claude-project-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.08);
+  color: rgba(56, 189, 248, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.claude-project-badge:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}

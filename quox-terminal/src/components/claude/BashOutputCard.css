@@ -1,0 +1,121 @@
+/* BashOutputCard — Command output with ANSI rendering */
+
+.bash-card {
+  border-left: 3px solid #f59e0b;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.bash-card--collapsed .bash-card__body {
+  display: none;
+}
+
+/* Header */
+.bash-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.bash-card__icon {
+  flex-shrink: 0;
+}
+
+.bash-card__label {
+  font-weight: 600;
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.bash-card__command {
+  color: #fbbf24;
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bash-card__spacer {
+  flex: 1;
+}
+
+.bash-card__duration {
+  color: #64748b;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.bash-card__exit {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  flex-shrink: 0;
+}
+
+.bash-card__exit--ok {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.bash-card__exit--error {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.bash-card__chevron {
+  color: #64748b;
+  font-size: 10px;
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+/* Body */
+.bash-card__body {
+  padding: 0 10px 6px;
+}
+
+.bash-card__output {
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.bash-card__expand {
+  color: #38bdf8;
+  cursor: pointer;
+  font-style: italic;
+}
+
+.bash-card__expand:hover {
+  text-decoration: underline;
+}
+
+.bash-card__collapse-btn {
+  font-size: 11px;
+  color: #64748b;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+
+.bash-card__collapse-btn:hover {
+  color: #94a3b8;
+}

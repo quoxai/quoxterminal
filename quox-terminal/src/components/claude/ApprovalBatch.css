@@ -1,0 +1,132 @@
+/* ApprovalBatch — Grouped approval UI */
+
+.approval-batch {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: 6px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.approval-batch__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+.approval-batch__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.approval-batch__spacer {
+  flex: 1;
+}
+
+.approval-batch__btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.approval-batch__btn--approve-all {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.approval-batch__btn--approve-all:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.approval-batch__btn--deny-all {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.approval-batch__btn--deny-all:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+/* Individual items */
+.approval-batch__list {
+  padding: 4px 0;
+}
+
+.approval-batch__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 11px;
+}
+
+.approval-batch__item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.approval-batch__tool-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.approval-batch__tool-name {
+  font-weight: 600;
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.approval-batch__tool-summary {
+  color: #94a3b8;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approval-batch__item-spacer {
+  flex: 1;
+}
+
+.approval-batch__item-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.approval-batch__item-btn--approve {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+}
+
+.approval-batch__item-btn--approve:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.approval-batch__item-btn--deny {
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}
+
+.approval-batch__item-btn--deny:hover {
+  background: rgba(248, 113, 113, 0.2);
+}

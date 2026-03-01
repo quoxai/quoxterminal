@@ -1,0 +1,34 @@
+/* CostTracker — Session cost display */
+
+.cost-tracker {
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cost-tracker__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.cost-tracker__label {
+  color: #64748b;
+}
+
+.cost-tracker__value {
+  color: #94a3b8;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  font-size: 11px;
+}
+
+.cost-tracker__value--model {
+  color: #a78bfa;
+  font-weight: 500;
+}
+
+.cost-tracker__value--cost {
+  color: #facc15;
+  font-weight: 500;
+}

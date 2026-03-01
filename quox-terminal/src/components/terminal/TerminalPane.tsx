@@ -13,6 +13,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
+import ClaudePaneEmbed from "../claude/ClaudePaneEmbed";
 import HostKnowledgeCard from "./HostKnowledgeCard";
 import ErrorNotificationBar from "./ErrorNotificationBar";
 import SshConnectDialog, {
@@ -254,11 +255,14 @@ export default function TerminalPane({
 
   // Session type label
   const sessionLabel =
+    paneMode === "claude" ? "Claude" :
     paneMode === "ssh" ? paneHostId || "SSH" : "Local";
   const sessionLabelClass =
-    paneMode === "ssh"
-      ? "terminal-pane__label terminal-pane__label--ssh"
-      : "terminal-pane__label";
+    paneMode === "claude"
+      ? "terminal-pane__label terminal-pane__label--claude"
+      : paneMode === "ssh"
+        ? "terminal-pane__label terminal-pane__label--ssh"
+        : "terminal-pane__label";
 
   return (
     <div
@@ -267,6 +271,22 @@ export default function TerminalPane({
     >
       <div className="terminal-pane__header">
         <span className={sessionLabelClass}>
+          {paneMode === "claude" && (
+            <svg
+              className="terminal-pane__label-icon"
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+          )}
           {paneMode === "ssh" && (
             <svg
               className="terminal-pane__label-icon"
@@ -286,6 +306,32 @@ export default function TerminalPane({
           )}
           {sessionLabel}
         </span>
+
+        {/* Claude mode toggle — shown when not in claude mode */}
+        {paneMode !== "claude" && paneMode === "local" && (
+          <button
+            className="terminal-pane__claude-btn"
+            onClick={() => onModeChange?.(paneId, "claude", "")}
+            title="Switch to Claude Mode (Ctrl+Shift+K)"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+            Claude
+          </button>
+        )}
+
+        {/* Exit Claude mode */}
+        {paneMode === "claude" && (
+          <button
+            className="terminal-pane__claude-btn terminal-pane__claude-btn--exit"
+            onClick={() => onModeChange?.(paneId, "local", "")}
+            title="Switch to Terminal"
+          >
+            Terminal
+          </button>
+        )}
 
         {/* Host picker / SSH connect — shown when in local mode */}
         {paneMode === "local" && (
@@ -360,7 +406,13 @@ export default function TerminalPane({
           />
         )}
 
-        {paneMode === "ssh" && sessionId ? (
+        {paneMode === "claude" ? (
+          <ClaudePaneEmbed
+            key={`claude-${paneId}`}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+          />
+        ) : paneMode === "ssh" && sessionId ? (
           <SshTerminalEmbed
             key={`ssh-${paneId}`}
             sessionId={sessionId}
@@ -389,8 +441,8 @@ export default function TerminalPane({
           />
         )}
 
-        {/* Error detection bar */}
-        {detectedError && (
+        {/* Error detection bar — not shown in Claude mode */}
+        {paneMode !== "claude" && detectedError && (
           <ErrorNotificationBar
             error={detectedError}
             onAction={(action, error) => onErrorAction?.(action, error)}

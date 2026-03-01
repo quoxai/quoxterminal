@@ -1,0 +1,168 @@
+/* ToolCallCard — Collapsible tool call card */
+
+.tool-card {
+  border-left: 3px solid var(--tool-color, #94a3b8);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  margin: 6px 0;
+  overflow: hidden;
+  transition: background 0.15s ease;
+}
+
+.tool-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tool-card--collapsed .tool-card__body {
+  display: none;
+}
+
+/* Header */
+.tool-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.tool-card__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tool-card__tool-name {
+  font-weight: 600;
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.tool-card__summary {
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.tool-card__spacer {
+  flex: 1;
+}
+
+.tool-card__duration {
+  color: #64748b;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tool-card__status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tool-card__status--pending {
+  background: #f59e0b;
+  animation: tool-card-pulse 1.5s ease-in-out infinite;
+}
+
+.tool-card__status--running {
+  background: #38bdf8;
+  animation: tool-card-pulse 1s ease-in-out infinite;
+}
+
+.tool-card__status--done {
+  background: #4ade80;
+}
+
+.tool-card__status--denied {
+  background: #f87171;
+}
+
+.tool-card__status--error {
+  background: #ef4444;
+}
+
+@keyframes tool-card-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.tool-card__chevron {
+  color: #64748b;
+  font-size: 10px;
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+/* Body */
+.tool-card__body {
+  padding: 0 10px 8px;
+}
+
+.tool-card__input {
+  margin-bottom: 4px;
+}
+
+.tool-card__output {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 6px;
+}
+
+.tool-card__pre {
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Approve / Deny buttons */
+.tool-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tool-card__btn {
+  padding: 4px 14px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tool-card__btn--approve {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.tool-card__btn--approve:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.tool-card__btn--deny {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.tool-card__btn--deny:hover {
+  background: rgba(248, 113, 113, 0.2);
+}

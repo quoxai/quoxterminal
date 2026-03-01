@@ -1,0 +1,91 @@
+/* TokenBudgetGauge — Context window usage bar */
+
+.token-gauge {
+  padding: 8px 0;
+}
+
+.token-gauge__label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.token-gauge__title {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.token-gauge__total {
+  color: #64748b;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+}
+
+/* Bar */
+.token-gauge__bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+}
+
+.token-gauge__bar--warning {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+.token-gauge__bar--critical {
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.3);
+}
+
+.token-gauge__segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.token-gauge__segment--input {
+  background: #38bdf8;
+}
+
+.token-gauge__segment--output {
+  background: #a78bfa;
+}
+
+/* Legend */
+.token-gauge__legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.token-gauge__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.token-gauge__legend-item--free {
+  margin-left: auto;
+}
+
+.token-gauge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.token-gauge__dot--input {
+  background: #38bdf8;
+}
+
+.token-gauge__dot--output {
+  background: #a78bfa;
+}
+
+.token-gauge__dot--cache {
+  background: #4ade80;
+}

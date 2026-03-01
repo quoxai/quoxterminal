@@ -38,6 +38,44 @@
   color: #a78bfa;
 }
 
+.terminal-pane__label--claude {
+  color: #38bdf8;
+}
+
+/* Claude mode toggle button */
+.terminal-pane__claude-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  background: rgba(56, 189, 248, 0.06);
+  color: rgba(56, 189, 248, 0.6);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.15s ease;
+}
+
+.terminal-pane__claude-btn:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.terminal-pane__claude-btn--exit {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.terminal-pane__claude-btn--exit:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 .terminal-pane__label-icon {
   flex-shrink: 0;
 }

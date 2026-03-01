@@ -1,0 +1,117 @@
+/* ReadFileCard — File preview for Read tool calls */
+
+.read-card {
+  border-left: 3px solid #38bdf8;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.read-card--collapsed .read-card__body {
+  display: none;
+}
+
+/* Header */
+.read-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.read-card__icon {
+  flex-shrink: 0;
+}
+
+.read-card__label {
+  font-weight: 600;
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.read-card__path {
+  color: #94a3b8;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.read-card__spacer {
+  flex: 1;
+}
+
+.read-card__lines {
+  color: #64748b;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.read-card__duration {
+  color: #64748b;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.read-card__status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.read-card__status--pending {
+  background: #f59e0b;
+  animation: read-card-pulse 1.5s ease-in-out infinite;
+}
+
+.read-card__status--running {
+  background: #38bdf8;
+  animation: read-card-pulse 1s ease-in-out infinite;
+}
+
+.read-card__status--done {
+  background: #4ade80;
+}
+
+.read-card__status--error {
+  background: #ef4444;
+}
+
+@keyframes read-card-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.read-card__chevron {
+  color: #64748b;
+  font-size: 10px;
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+/* Body */
+.read-card__body {
+  padding: 0 10px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.read-card__content {
+  font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin: 0;
+  padding: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}

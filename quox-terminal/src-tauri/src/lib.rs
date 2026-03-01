@@ -25,6 +25,9 @@ mod shell_integration;
 // Memory bridge — local-only entity/session/error storage
 mod memory;
 
+// Claude Mode — structured Claude CLI integration
+mod claude;
+
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -93,6 +96,11 @@ pub fn run() {
             memory::commands::collector_add_learned_item,
             memory::commands::collector_record_decision,
             memory::commands::collector_set_focus,
+            // Claude Mode commands
+            commands::claude_spawn,
+            commands::claude_write,
+            commands::claude_kill,
+            commands::detect_claude_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

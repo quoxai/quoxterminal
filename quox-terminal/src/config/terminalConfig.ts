@@ -121,6 +121,27 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
     ],
   },
   {
+    category: "Claude Mode",
+    items: [
+      {
+        keys: [modKey, "Shift", "K"],
+        ctrl: true,
+        shift: true,
+        key: "K",
+        action: "toggleClaudeMode",
+        description: "Toggle Claude mode on focused pane",
+      },
+      {
+        keys: [modKey, "Shift", "I"],
+        ctrl: true,
+        shift: true,
+        key: "I",
+        action: "toggleClaudeContext",
+        description: "Toggle Claude context panel",
+      },
+    ],
+  },
+  {
     category: "Vim",
     items: [
       {
