@@ -1,8 +1,53 @@
-.claude-status-bar {
+/* ── Status area wrapper — anchored at bottom, stacks children ───── */
+
+.claude-status-area {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  z-index: 5;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Quick action buttons row ──────────────────────────────────────── */
+
+.claude-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: rgba(10, 14, 20, 0.6);
+  backdrop-filter: blur(4px);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.claude-quick-actions__btn {
+  pointer-events: auto;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.claude-quick-actions__btn:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+  color: rgba(56, 189, 248, 0.8);
+}
+
+/* ── Status bar ───────────────────────────────────────────────────── */
+
+.claude-status-bar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -10,10 +55,14 @@
   background: rgba(10, 14, 20, 0.75);
   backdrop-filter: blur(6px);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  pointer-events: none;
-  z-index: 5;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;  /* Firefox */
+}
+
+.claude-status-bar::-webkit-scrollbar {
+  display: none;  /* Chrome/Safari */
 }
 
 .claude-status-bar__mode {
@@ -21,29 +70,143 @@
   border: 1px solid;
   border-radius: 3px;
   font-weight: 700;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.5px;
-  pointer-events: auto;
+  flex-shrink: 0;
 }
+
+/* ── Model picker ─────────────────────────────────────────────────── */
+
+.claude-status-bar__model-picker {
+  position: relative;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.claude-status-bar__model-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.claude-status-bar__model-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.claude-status-bar__model-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  background: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  min-width: 120px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.claude-status-bar__model-option {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.claude-status-bar__model-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.claude-status-bar__model-option--active {
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+}
+
+/* ── CLAUDE.md badge ──────────────────────────────────────────────── */
 
 .claude-status-bar__badge {
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(56, 189, 248, 0.12);
   color: rgba(56, 189, 248, 0.7);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
+  border: none;
+  font-family: inherit;
+  flex-shrink: 0;
 }
+
+.claude-status-bar__badge--clickable {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.claude-status-bar__badge--clickable:hover {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+/* ── Resume buttons ───────────────────────────────────────────────── */
+
+.claude-status-bar__resume-btn {
+  pointer-events: auto;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  background: rgba(168, 85, 247, 0.06);
+  color: rgba(168, 85, 247, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.claude-status-bar__resume-btn:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #a855f7;
+}
+
+/* ── Spacer / duration / label ────────────────────────────────────── */
 
 .claude-status-bar__spacer {
   flex: 1;
+  min-width: 4px;
 }
 
 .claude-status-bar__duration {
   color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
 }
 
 .claude-status-bar__label {
   color: rgba(255, 255, 255, 0.25);
   font-weight: 500;
+  flex-shrink: 0;
 }

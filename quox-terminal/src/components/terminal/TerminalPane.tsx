@@ -30,12 +30,15 @@ import { getSessions, type SessionRecord } from "../../services/localMemoryStore
 import {
   TERMINAL_MODES,
   DEFAULT_MODE,
+  DEFAULT_MODEL,
   getClaudeArgs,
   loadMode,
   saveMode,
   type ModeId,
+  type ModelId,
 } from "../../config/terminalModes";
 import { detectClaudeProject } from "../../lib/tauri-claude";
+import { homeDir } from "@tauri-apps/api/path";
 import "./TerminalPane.css";
 
 interface TerminalPaneProps {
@@ -97,16 +100,25 @@ export default function TerminalPane({
   // Claude mode state
   const [claudeView, setClaudeView] = useState<"native" | "structured">("native");
   const [selectedMode, setSelectedMode] = useState<ModeId>(DEFAULT_MODE);
+  const [selectedModel, setSelectedModel] = useState<ModelId>(DEFAULT_MODEL);
+  const [claudeResumeMode, setClaudeResumeMode] = useState<"new" | "continue" | "resume">("new");
   const [claudeProjectDetected, setClaudeProjectDetected] = useState(false);
-  const [claudeSessionStart] = useState(() => Date.now());
+  const [claudeMdPath, setClaudeMdPath] = useState<string | null>(null);
+  const [claudeSessionStart, setClaudeSessionStart] = useState(() => Date.now());
 
   // Load persisted mode and detect project when entering claude mode
   useEffect(() => {
     if (paneMode === "claude") {
+      setClaudeSessionStart(Date.now());
       loadMode(paneId).then((saved) => setSelectedMode(saved));
-      detectClaudeProject(".").then((info) => {
-        setClaudeProjectDetected(!!info);
-      }).catch(() => {});
+      homeDir().then((home) => {
+        return detectClaudeProject(home);
+      }).then((info) => {
+        setClaudeProjectDetected(info.is_claude_project);
+        setClaudeMdPath(info.claude_md_path ?? null);
+      }).catch((err) => {
+        console.warn("detectClaudeProject failed:", err);
+      });
     }
   }, [paneMode, paneId]);
 
@@ -114,14 +126,29 @@ export default function TerminalPane({
     (mode: ModeId) => {
       setSelectedMode(mode);
       saveMode(paneId, mode);
+      setClaudeResumeMode("new");
+      setClaudeSessionStart(Date.now());
     },
     [paneId],
   );
 
-  const claudeShellArgs = useMemo(
-    () => getClaudeArgs(selectedMode),
-    [selectedMode],
-  );
+  const handleModelChange = useCallback((model: ModelId) => {
+    setSelectedModel(model);
+    setClaudeResumeMode("new");
+    setClaudeSessionStart(Date.now());
+  }, []);
+
+  const handleResume = useCallback((mode: "continue" | "resume") => {
+    setClaudeResumeMode(mode);
+    setClaudeSessionStart(Date.now());
+  }, []);
+
+  const claudeShellArgs = useMemo(() => {
+    const base = getClaudeArgs(selectedMode, selectedModel);
+    if (claudeResumeMode === "continue") return [...base, "--continue"];
+    if (claudeResumeMode === "resume") return [...base, "--resume"];
+    return base;
+  }, [selectedMode, selectedModel, claudeResumeMode]);
 
   // Vim mode hook
   const { vimMode, vimKeyHandler } = useVimMode({
@@ -469,7 +496,7 @@ export default function TerminalPane({
 
         {paneMode === "claude" && claudeView === "native" ? (
           <TerminalEmbed
-            key={`claude-native-${paneId}-${selectedMode}`}
+            key={`claude-native-${paneId}-${selectedMode}-${selectedModel}-${claudeResumeMode}`}
             shell="claude"
             shellArgs={claudeShellArgs}
             onConnect={handleConnect}
@@ -532,8 +559,13 @@ export default function TerminalPane({
         {paneMode === "claude" && claudeView === "native" && (
           <ClaudeStatusBar
             mode={selectedMode}
+            model={selectedModel}
             projectDetected={claudeProjectDetected}
+            claudeMdPath={claudeMdPath}
             sessionStartTime={claudeSessionStart}
+            sessionId={sessionId}
+            onModelChange={handleModelChange}
+            onResume={handleResume}
           />
         )}
       </div>

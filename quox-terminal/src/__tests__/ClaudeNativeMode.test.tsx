@@ -18,6 +18,10 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
+vi.mock("@tauri-apps/api/path", () => ({
+  homeDir: vi.fn().mockResolvedValue("/mock/home"),
+}));
+
 vi.mock("../../lib/tauri-pty", () => ({
   ptySpawn: vi.fn().mockResolvedValue("mock-pty-session"),
   ptyWrite: vi.fn().mockResolvedValue(undefined),
@@ -152,5 +156,56 @@ describe("Claude Native Mode", () => {
     const strictBtn = screen.getByText("Strict");
     fireEvent.click(strictBtn);
     expect(strictBtn.className).toContain("--active");
+  });
+
+  it("mode change updates the active pill and status bar", () => {
+    render(<TerminalPane {...defaultProps} />);
+    // Default is Balanced
+    expect(screen.getByText("Balanced").className).toContain("--active");
+    // Click Builder
+    const builderBtn = screen.getByText("Builder");
+    fireEvent.click(builderBtn);
+    expect(builderBtn.className).toContain("--active");
+    // Balanced should no longer be active
+    expect(screen.getByText("Balanced").className).not.toContain("--active");
+    // Status bar shows BUILDER
+    expect(screen.getByText("BUILDER")).toBeDefined();
+  });
+
+  it("view toggle renders correct component label", () => {
+    render(<TerminalPane {...defaultProps} />);
+    // In native mode, toggle says "Structured"
+    expect(screen.getByText("Structured")).toBeDefined();
+    // Click to switch to structured
+    fireEvent.click(screen.getByText("Structured"));
+    // Now it should say "Native"
+    expect(screen.getByText("Native")).toBeDefined();
+    // Click back
+    fireEvent.click(screen.getByText("Native"));
+    expect(screen.getByText("Structured")).toBeDefined();
+  });
+
+  it("renders model picker with default model", () => {
+    render(<TerminalPane {...defaultProps} />);
+    expect(screen.getByText("Sonnet 4.6")).toBeDefined();
+  });
+
+  it("renders resume buttons", () => {
+    render(<TerminalPane {...defaultProps} />);
+    expect(screen.getByText("Continue")).toBeDefined();
+    expect(screen.getByText("Resume")).toBeDefined();
+  });
+
+  it("does not render quick actions without sessionId", () => {
+    render(<TerminalPane {...defaultProps} sessionId={null} />);
+    expect(screen.queryByText("/compact")).toBeNull();
+  });
+
+  it("renders quick actions with sessionId", () => {
+    render(<TerminalPane {...defaultProps} sessionId="test-session-123" />);
+    expect(screen.getByText("/compact")).toBeDefined();
+    expect(screen.getByText("/cost")).toBeDefined();
+    expect(screen.getByText("/clear")).toBeDefined();
+    expect(screen.getByText("/model")).toBeDefined();
   });
 });

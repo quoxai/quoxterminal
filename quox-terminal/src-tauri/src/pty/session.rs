@@ -177,6 +177,7 @@ impl PtySession {
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
         let mut cmd = CommandBuilder::new(shell);
+        // Safety: args are constructed by getClaudeArgs() in frontend, not user input
         if let Some(extra_args) = args {
             for arg in extra_args {
                 cmd.arg(arg);

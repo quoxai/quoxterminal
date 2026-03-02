@@ -39,7 +39,7 @@ export interface FilePolicy {
 // ── Mode Metadata (UI) ──────────────────────────────────────────────
 
 export const TERMINAL_MODES: Record<ModeId, TerminalMode> = {
-  strict:   { id: 'strict',   label: 'Strict',   description: 'Safer, confirmation-heavy',          color: '#f59e0b', cliArgs: ['--allowedTools', 'Read,Glob,Grep,WebSearch'] },
+  strict:   { id: 'strict',   label: 'Strict',   description: 'Safer, confirmation-heavy',          color: '#f59e0b', cliArgs: ['--allowedTools', 'Read,Glob,Grep'] },
   balanced: { id: 'balanced', label: 'Balanced',  description: 'Default, practical safeguards',      color: '#38bdf8', cliArgs: [] },
   builder:  { id: 'builder',  label: 'Builder',   description: 'Fast execution, fewer interruptions', color: '#3b82f6', cliArgs: ['--dangerouslySkipPermissions'] },
   audit:    { id: 'audit',    label: 'Audit',     description: 'Read-only diagnosis mode',           color: '#a855f7', cliArgs: ['--allowedTools', 'Read,Glob,Grep'] },
@@ -47,11 +47,42 @@ export const TERMINAL_MODES: Record<ModeId, TerminalMode> = {
 
 export const DEFAULT_MODE: ModeId = 'balanced';
 
+// ── Model Selection ──────────────────────────────────────────────────
+
+export type ModelId = 'opus' | 'sonnet' | 'haiku';
+
+export interface ModelOption {
+  id: ModelId;
+  label: string;
+  flag: string;
+  color: string;
+}
+
+export const CLAUDE_MODELS: ModelOption[] = [
+  { id: 'sonnet', label: 'Sonnet 4.6', flag: 'sonnet',  color: '#38bdf8' },
+  { id: 'opus',   label: 'Opus 4.6',   flag: 'opus',    color: '#a855f7' },
+  { id: 'haiku',  label: 'Haiku 4.5',  flag: 'haiku',   color: '#22c55e' },
+];
+
+export const DEFAULT_MODEL: ModelId = 'sonnet';
+
+/**
+ * Get CLI args for a model selection (e.g. ['--model', 'sonnet']).
+ * Returns empty array for the default model (let claude pick).
+ */
+export function getModelFlag(model: ModelId): string[] {
+  const m = CLAUDE_MODELS.find((o) => o.id === model);
+  if (!m || model === DEFAULT_MODEL) return [];
+  return ['--model', m.flag];
+}
+
 /**
  * Get CLI args for launching `claude` in a given mode.
  */
-export function getClaudeArgs(mode: ModeId = DEFAULT_MODE): string[] {
-  return TERMINAL_MODES[mode]?.cliArgs ?? [];
+export function getClaudeArgs(mode: ModeId = DEFAULT_MODE, model?: ModelId): string[] {
+  const modeArgs = TERMINAL_MODES[mode]?.cliArgs ?? [];
+  const modelArgs = model ? getModelFlag(model) : [];
+  return [...modeArgs, ...modelArgs];
 }
 
 // ── Base System Prompt (shared across all modes) ────────────────────
