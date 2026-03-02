@@ -85,6 +85,64 @@
   flex-shrink: 0;
 }
 
+/* Claude mode pills */
+.terminal-pane__mode-pills {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.terminal-pane__mode-pill {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.terminal-pane__mode-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.terminal-pane__mode-pill--active {
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+}
+
+/* View toggle (Native / Structured) */
+.terminal-pane__view-toggle {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.terminal-pane__view-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.terminal-pane__view-toggle--active {
+  border-color: rgba(56, 189, 248, 0.2);
+  color: rgba(56, 189, 248, 0.6);
+}
+
 /* Connecting spinner */
 .terminal-pane__connecting {
   display: flex;

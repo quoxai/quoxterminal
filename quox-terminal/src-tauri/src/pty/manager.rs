@@ -33,6 +33,7 @@ impl PtyManager {
         shell: Option<String>,
         cwd: Option<String>,
         env: Option<Vec<(String, String)>>,
+        args: Option<Vec<String>>,
         app_handle: AppHandle,
     ) -> Result<String, String> {
         let id = uuid::Uuid::new_v4().to_string();
@@ -43,7 +44,7 @@ impl PtyManager {
                 .unwrap_or_else(|| "/".to_string())
         });
 
-        let session = PtySession::spawn(id.clone(), &shell, &cwd, env, app_handle)?;
+        let session = PtySession::spawn(id.clone(), &shell, &cwd, env, args, app_handle)?;
         self.sessions.insert(id.clone(), session);
         log::info!("PTY session spawned: {}", id);
         Ok(id)

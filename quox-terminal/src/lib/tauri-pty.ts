@@ -29,8 +29,9 @@ export async function ptySpawn(
   shell?: string,
   cwd?: string,
   env?: Record<string, string>,
+  args?: string[],
 ): Promise<string> {
-  return invoke<string>("pty_spawn", { shell, cwd, env });
+  return invoke<string>("pty_spawn", { shell, cwd, env, args: args ?? null });
 }
 
 /** Write data to a PTY session's stdin. */

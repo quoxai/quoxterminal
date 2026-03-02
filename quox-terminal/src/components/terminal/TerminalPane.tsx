@@ -10,10 +10,11 @@
  * fallback opens the full SSH connection dialog.
  */
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
 import ClaudePaneEmbed from "../claude/ClaudePaneEmbed";
+import ClaudeStatusBar from "../claude/ClaudeStatusBar";
 import HostKnowledgeCard from "./HostKnowledgeCard";
 import ErrorNotificationBar from "./ErrorNotificationBar";
 import SshConnectDialog, {
@@ -26,6 +27,15 @@ import { useTerminalErrorDetection } from "../../hooks/useTerminalErrorDetection
 import { sshConnect, sshDisconnect } from "../../lib/tauri-ssh";
 import { storeGet } from "../../lib/store";
 import { getSessions, type SessionRecord } from "../../services/localMemoryStore";
+import {
+  TERMINAL_MODES,
+  DEFAULT_MODE,
+  getClaudeArgs,
+  loadMode,
+  saveMode,
+  type ModeId,
+} from "../../config/terminalModes";
+import { detectClaudeProject } from "../../lib/tauri-claude";
 import "./TerminalPane.css";
 
 interface TerminalPaneProps {
@@ -83,6 +93,35 @@ export default function TerminalPane({
   const [showSshDialog, setShowSshDialog] = useState(false);
   const [sshConnecting, setSshConnecting] = useState(false);
   const [sshError, setSshError] = useState<string | null>(null);
+
+  // Claude mode state
+  const [claudeView, setClaudeView] = useState<"native" | "structured">("native");
+  const [selectedMode, setSelectedMode] = useState<ModeId>(DEFAULT_MODE);
+  const [claudeProjectDetected, setClaudeProjectDetected] = useState(false);
+  const [claudeSessionStart] = useState(() => Date.now());
+
+  // Load persisted mode and detect project when entering claude mode
+  useEffect(() => {
+    if (paneMode === "claude") {
+      loadMode(paneId).then((saved) => setSelectedMode(saved));
+      detectClaudeProject(".").then((info) => {
+        setClaudeProjectDetected(!!info);
+      }).catch(() => {});
+    }
+  }, [paneMode, paneId]);
+
+  const handleClaudeModeChange = useCallback(
+    (mode: ModeId) => {
+      setSelectedMode(mode);
+      saveMode(paneId, mode);
+    },
+    [paneId],
+  );
+
+  const claudeShellArgs = useMemo(
+    () => getClaudeArgs(selectedMode),
+    [selectedMode],
+  );
 
   // Vim mode hook
   const { vimMode, vimKeyHandler } = useVimMode({
@@ -322,15 +361,37 @@ export default function TerminalPane({
           </button>
         )}
 
-        {/* Exit Claude mode */}
+        {/* Claude mode controls */}
         {paneMode === "claude" && (
-          <button
-            className="terminal-pane__claude-btn terminal-pane__claude-btn--exit"
-            onClick={() => onModeChange?.(paneId, "local", "")}
-            title="Switch to Terminal"
-          >
-            Terminal
-          </button>
+          <>
+            <button
+              className="terminal-pane__claude-btn terminal-pane__claude-btn--exit"
+              onClick={() => onModeChange?.(paneId, "local", "")}
+              title="Switch to Terminal"
+            >
+              Terminal
+            </button>
+            <div className="terminal-pane__mode-pills">
+              {Object.values(TERMINAL_MODES).map((mode) => (
+                <button
+                  key={mode.id}
+                  className={`terminal-pane__mode-pill${selectedMode === mode.id ? " terminal-pane__mode-pill--active" : ""}`}
+                  onClick={() => handleClaudeModeChange(mode.id)}
+                  title={mode.description}
+                  style={selectedMode === mode.id ? { borderColor: mode.color, color: mode.color } : undefined}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            <button
+              className={`terminal-pane__view-toggle${claudeView === "structured" ? " terminal-pane__view-toggle--active" : ""}`}
+              onClick={() => setClaudeView((v) => v === "native" ? "structured" : "native")}
+              title={claudeView === "native" ? "Switch to Structured View" : "Switch to Native Terminal"}
+            >
+              {claudeView === "native" ? "Structured" : "Native"}
+            </button>
+          </>
         )}
 
         {/* Host picker / SSH connect — shown when in local mode */}
@@ -406,9 +467,24 @@ export default function TerminalPane({
           />
         )}
 
-        {paneMode === "claude" ? (
+        {paneMode === "claude" && claudeView === "native" ? (
+          <TerminalEmbed
+            key={`claude-native-${paneId}-${selectedMode}`}
+            shell="claude"
+            shellArgs={claudeShellArgs}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onSessionId={handleSessionId}
+            onData={handleData}
+            customKeyHandler={composedKeyHandler}
+            clearRef={clearRef}
+            reconnectRef={reconnectRef}
+            scrollRef={scrollRef}
+            visible={visible}
+          />
+        ) : paneMode === "claude" && claudeView === "structured" ? (
           <ClaudePaneEmbed
-            key={`claude-${paneId}`}
+            key={`claude-structured-${paneId}`}
             paneId={paneId}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
@@ -449,6 +525,15 @@ export default function TerminalPane({
             onAction={(action, error) => onErrorAction?.(action, error)}
             onDismiss={dismissError}
             mode={paneMode}
+          />
+        )}
+
+        {/* Claude status bar overlay — native mode only */}
+        {paneMode === "claude" && claudeView === "native" && (
+          <ClaudeStatusBar
+            mode={selectedMode}
+            projectDetected={claudeProjectDetected}
+            sessionStartTime={claudeSessionStart}
           />
         )}
       </div>

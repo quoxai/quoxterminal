@@ -22,6 +22,7 @@ export interface TerminalMode {
   label: string;
   description: string;
   color: string;
+  cliArgs: string[];
 }
 
 export interface ExecPolicy {
@@ -38,13 +39,20 @@ export interface FilePolicy {
 // ── Mode Metadata (UI) ──────────────────────────────────────────────
 
 export const TERMINAL_MODES: Record<ModeId, TerminalMode> = {
-  strict:   { id: 'strict',   label: 'Strict',   description: 'Safer, confirmation-heavy',          color: '#f59e0b' },
-  balanced: { id: 'balanced', label: 'Balanced',  description: 'Default, practical safeguards',      color: '#38bdf8' },
-  builder:  { id: 'builder',  label: 'Builder',   description: 'Fast execution, fewer interruptions', color: '#3b82f6' },
-  audit:    { id: 'audit',    label: 'Audit',     description: 'Read-only diagnosis mode',           color: '#a855f7' },
+  strict:   { id: 'strict',   label: 'Strict',   description: 'Safer, confirmation-heavy',          color: '#f59e0b', cliArgs: ['--allowedTools', 'Read,Glob,Grep,WebSearch'] },
+  balanced: { id: 'balanced', label: 'Balanced',  description: 'Default, practical safeguards',      color: '#38bdf8', cliArgs: [] },
+  builder:  { id: 'builder',  label: 'Builder',   description: 'Fast execution, fewer interruptions', color: '#3b82f6', cliArgs: ['--dangerouslySkipPermissions'] },
+  audit:    { id: 'audit',    label: 'Audit',     description: 'Read-only diagnosis mode',           color: '#a855f7', cliArgs: ['--allowedTools', 'Read,Glob,Grep'] },
 };
 
 export const DEFAULT_MODE: ModeId = 'balanced';
+
+/**
+ * Get CLI args for launching `claude` in a given mode.
+ */
+export function getClaudeArgs(mode: ModeId = DEFAULT_MODE): string[] {
+  return TERMINAL_MODES[mode]?.cliArgs ?? [];
+}
 
 // ── Base System Prompt (shared across all modes) ────────────────────
 

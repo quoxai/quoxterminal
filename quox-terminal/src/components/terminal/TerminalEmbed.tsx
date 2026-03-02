@@ -74,6 +74,7 @@ interface ScrollRef {
 
 interface TerminalEmbedProps {
   shell?: string;
+  shellArgs?: string[];
   cwd?: string;
   sessionId?: string | null;
   onConnect?: () => void;
@@ -90,6 +91,7 @@ interface TerminalEmbedProps {
 
 export default function TerminalEmbed({
   shell,
+  shellArgs,
   cwd,
   sessionId: sessionIdProp,
   onConnect,
@@ -184,10 +186,10 @@ export default function TerminalEmbed({
             isReconnect = true;
           } else {
             // Session died while we were away, spawn fresh
-            sid = await ptySpawn(shell, cwd);
+            sid = await ptySpawn(shell, cwd, undefined, shellArgs);
           }
         } else {
-          sid = await ptySpawn(shell, cwd);
+          sid = await ptySpawn(shell, cwd, undefined, shellArgs);
         }
 
         sessionIdRef.current = sid;
@@ -255,7 +257,7 @@ export default function TerminalEmbed({
         setStatus("error");
       }
     },
-    [shell, cwd, detachPty],
+    [shell, shellArgs, cwd, detachPty],
   );
 
   // Create terminal + initial connection

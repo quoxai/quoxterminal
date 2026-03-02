@@ -162,6 +162,7 @@ impl PtySession {
         shell: &str,
         cwd: &str,
         env: Option<Vec<(String, String)>>,
+        args: Option<Vec<String>>,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let pty_system = portable_pty::native_pty_system();
@@ -176,6 +177,11 @@ impl PtySession {
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
         let mut cmd = CommandBuilder::new(shell);
+        if let Some(extra_args) = args {
+            for arg in extra_args {
+                cmd.arg(arg);
+            }
+        }
         cmd.cwd(cwd);
 
         // Add any extra environment variables

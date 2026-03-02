@@ -24,6 +24,7 @@ pub fn pty_spawn(
     shell: Option<String>,
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
+    args: Option<Vec<String>>,
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<String, String> {
@@ -32,7 +33,7 @@ pub fn pty_spawn(
         .pty_manager
         .lock()
         .map_err(|e| format!("Lock error: {}", e))?;
-    manager.spawn(shell, cwd, env_vec, app_handle)
+    manager.spawn(shell, cwd, env_vec, args, app_handle)
 }
 
 /// Write data to a PTY session's stdin.
