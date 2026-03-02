@@ -74,12 +74,16 @@ interface ModelOption {
   label: string;
 }
 
-// ── Available models (hardcoded for now — settings will expand this) ──
+// ── Available models ─────────────────────────────────────────────────
 
 const AVAILABLE_MODELS: ModelOption[] = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+  { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+  { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
   { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
+  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
 ];
 
 // ── Static markdown components (no terminal context needed) ───────────
