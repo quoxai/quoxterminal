@@ -14,6 +14,7 @@ import {
   type ToolCall,
   type ClaudeEvent,
 } from "../services/claudeOutputParser";
+import { playNotificationBeep } from "../utils/notificationBeep";
 
 export type SessionStatus =
   | "idle"
@@ -74,6 +75,13 @@ export default function useClaudeSession(): UseClaudeSessionReturn {
       }
     };
   }, []);
+
+  // Beep when Claude transitions to waiting for user input
+  useEffect(() => {
+    if (state.status === "waiting") {
+      playNotificationBeep();
+    }
+  }, [state.status]);
 
   const handleEvent = useCallback((rawEvent: ClaudeEvent) => {
     setState((prev) => {
