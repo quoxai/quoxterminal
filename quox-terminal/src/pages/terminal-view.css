@@ -151,6 +151,36 @@
   background: rgba(16, 185, 129, 0.2);
 }
 
+/* Agent Teams toggle button */
+.terminal-view__teams-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.terminal-view__teams-btn:hover {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+.terminal-view__teams-btn:active {
+  transform: scale(0.92);
+}
+.terminal-view__teams-btn--active {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.2);
+}
+.terminal-view__teams-btn--active:hover {
+  background: rgba(249, 115, 22, 0.2);
+}
+
 .terminal-view__settings-btn {
   display: flex;
   align-items: center;

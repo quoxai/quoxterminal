@@ -14,12 +14,18 @@ import useTerminalWorkspace, {
   type LayoutPreset,
   type WorkspaceState,
 } from "../hooks/useTerminalWorkspace";
+import useTeamSession from "../hooks/useTeamSession";
 import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
+import { getAgentEnv, type TeamTemplate } from "../config/teamConfig";
+import { getClaudeArgs, type ModelId } from "../config/terminalModes";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
 import FleetDashboard from "../components/hosts/FleetDashboard";
 import ToolPalette from "../components/tools/ToolPalette";
+import TeamLauncherModal from "../components/teams/TeamLauncherModal";
+import TeamControlBar from "../components/teams/TeamControlBar";
+import TaskBoard from "../components/teams/TaskBoard";
 import SessionRestoreBanner from "../components/terminal/SessionRestoreBanner";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
@@ -136,8 +142,20 @@ export default function TerminalView() {
     setActiveWorkspace,
   } = useTerminalWorkspace();
 
+  const {
+    teamSession,
+    startTeam,
+    getTeamEnv,
+    updateAgentStatus,
+    stopTeam,
+    clearTeam,
+    isTeamActive,
+  } = useTeamSession();
+
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [teamsModalOpen, setTeamsModalOpen] = useState(false);
+  const [taskBoardOpen, setTaskBoardOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -238,6 +256,56 @@ export default function TerminalView() {
     setPendingErrorAction(null);
   }, []);
 
+  // ── Team launch handler ───────────────────────────────────────────
+  const handleTeamLaunch = useCallback(
+    (template: TeamTemplate, projectDir: string, workingOn: string) => {
+      setTeamsModalOpen(false);
+
+      // Create a new workspace for the team
+      addWorkspace();
+
+      // We need to wait a tick for the workspace to be created, then configure it
+      setTimeout(() => {
+        // Set layout to match template
+        setLayout(template.layout);
+
+        // Start team session — generates taskListId
+        const session = startTeam(template, activeWorkspaceId, projectDir, workingOn);
+        const env = getAgentEnv(session.taskListId);
+
+        // Configure each pane as a claude agent
+        setTimeout(() => {
+          template.agents.forEach((agent, i) => {
+            const paneId = `pane-${i}`;
+            updatePane(paneId, {
+              mode: 'claude',
+              hostId: '',
+              env,
+              teamRole: {
+                name: agent.name,
+                color: agent.color,
+                isLead: agent.isLead,
+              },
+            });
+          });
+        }, 100);
+      }, 50);
+    },
+    [addWorkspace, setLayout, startTeam, activeWorkspaceId, updatePane],
+  );
+
+  // ── Team stop handler ────────────────────────────────────────────
+  const handleTeamStop = useCallback(() => {
+    if (!teamSession) return;
+    // Kill all team agent PTYs
+    teamSession.agents.forEach((agent) => {
+      if (agent.sessionId) {
+        ptyKill(agent.sessionId).catch(() => {});
+      }
+    });
+    stopTeam();
+  }, [teamSession, stopTeam]);
+
   const handlePaneErrorState = useCallback(
     (paneId: string, hasError: boolean) => {
       setPaneErrors((prev) => {
@@ -302,6 +370,9 @@ export default function TerminalView() {
         }
         case "toggleTools":
           setToolsOpen((prev) => !prev);
+          break;
+        case "toggleTeams":
+          setTeamsModalOpen((prev) => !prev);
           break;
       }
 
@@ -626,6 +697,20 @@ export default function TerminalView() {
             </svg>
           </button>
 
+          {/* Agent Teams toggle */}
+          <button
+            className={`terminal-view__teams-btn ${isTeamActive ? "terminal-view__teams-btn--active" : ""}`}
+            onClick={() => setTeamsModalOpen(true)}
+            title="Agent Teams (Ctrl+Shift+A)"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </button>
+
           {/* Settings gear */}
           <button
             className="terminal-view__settings-btn"
@@ -753,8 +838,28 @@ export default function TerminalView() {
         />
       )}
 
+      {/* Team Control Bar — shown when team is active */}
+      {isTeamActive && teamSession && (
+        <TeamControlBar
+          session={teamSession}
+          onPauseAll={() => {
+            // Send Ctrl+C to all team PTYs
+            teamSession.agents.forEach((a) => {
+              if (a.sessionId) {
+                import("../lib/tauri-pty").then(({ ptyWrite }) => {
+                  ptyWrite(a.sessionId!, '\x03').catch(() => {});
+                });
+              }
+            });
+          }}
+          onStopTeam={handleTeamStop}
+          onToggleTaskBoard={() => setTaskBoardOpen((p) => !p)}
+          taskBoardOpen={taskBoardOpen}
+        />
+      )}
+
       {/* Main content — terminal grid + optional chat sidebar */}
-      <div className={`terminal-view__main ${chatOpen || fleetOpen || toolsOpen ? "terminal-view__main--chat-open" : ""}`}>
+      <div className={`terminal-view__main ${chatOpen || fleetOpen || toolsOpen || taskBoardOpen ? "terminal-view__main--chat-open" : ""}`}>
         <div className="terminal-view__body" data-layout={layout}>
           {panes.map((pane) => (
             <TerminalPane
@@ -762,6 +867,8 @@ export default function TerminalView() {
               paneId={pane.id}
               paneMode={pane.mode}
               paneHostId={pane.hostId}
+              env={pane.env}
+              teamRole={pane.teamRole}
               sessionId={pane.sessionId}
               isFocused={pane.id === focusedPaneId}
               showCloseBtn={panes.length > 1}
@@ -854,6 +961,15 @@ export default function TerminalView() {
             }
             errorAction={pendingErrorAction}
             onErrorActionConsumed={clearPendingErrorAction}
+          />
+        )}
+
+        {/* Task Board sidebar — shown when team is active and toggled */}
+        {taskBoardOpen && teamSession && (
+          <TaskBoard
+            taskListId={teamSession.taskListId}
+            agents={teamSession.agents}
+            onClose={() => setTaskBoardOpen(false)}
           />
         )}
       </div>
@@ -949,6 +1065,13 @@ export default function TerminalView() {
       <QuoxSettings
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      {/* Agent Teams launcher modal */}
+      <TeamLauncherModal
+        isOpen={teamsModalOpen}
+        onClose={() => setTeamsModalOpen(false)}
+        onLaunch={handleTeamLaunch}
       />
     </div>
   );

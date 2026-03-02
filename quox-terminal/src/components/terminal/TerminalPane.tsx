@@ -45,6 +45,8 @@ interface TerminalPaneProps {
   paneId: string;
   paneMode?: string;
   paneHostId?: string;
+  env?: Record<string, string>;
+  teamRole?: { name: string; color: string; isLead: boolean };
   sessionId: string | null;
   isFocused: boolean;
   showCloseBtn: boolean;
@@ -68,6 +70,8 @@ export default function TerminalPane({
   paneId,
   paneMode = "local",
   paneHostId = "",
+  env: paneEnv,
+  teamRole,
   sessionId,
   isFocused,
   showCloseBtn,
@@ -319,16 +323,19 @@ export default function TerminalPane({
 
   const showKnowledgeCard = paneMode === 'ssh' && paneHostId && !knowledgeCardDismissed && localSessions.length > 0;
 
-  // Session type label
+  // Session type label — team role overrides default label
   const sessionLabel =
+    teamRole ? teamRole.name :
     paneMode === "claude" ? "Claude" :
     paneMode === "ssh" ? paneHostId || "SSH" : "Local";
   const sessionLabelClass =
-    paneMode === "claude"
-      ? "terminal-pane__label terminal-pane__label--claude"
-      : paneMode === "ssh"
-        ? "terminal-pane__label terminal-pane__label--ssh"
-        : "terminal-pane__label";
+    teamRole
+      ? "terminal-pane__label terminal-pane__team-label"
+      : paneMode === "claude"
+        ? "terminal-pane__label terminal-pane__label--claude"
+        : paneMode === "ssh"
+          ? "terminal-pane__label terminal-pane__label--ssh"
+          : "terminal-pane__label";
 
   return (
     <div
@@ -336,8 +343,17 @@ export default function TerminalPane({
       onClick={handleFocus}
     >
       <div className="terminal-pane__header">
-        <span className={sessionLabelClass}>
-          {paneMode === "claude" && (
+        <span className={sessionLabelClass} style={teamRole ? { color: teamRole.color } : undefined}>
+          {teamRole ? (
+            <>
+              <span
+                className="terminal-pane__team-dot terminal-pane__team-dot--running"
+                style={{ background: teamRole.color }}
+              />
+              {sessionLabel}
+              {teamRole.isLead && <span className="terminal-pane__team-lead-badge">LEAD</span>}
+            </>
+          ) : paneMode === "claude" ? (
             <svg
               className="terminal-pane__label-icon"
               width="10"
@@ -352,8 +368,7 @@ export default function TerminalPane({
               <polyline points="4 17 10 11 4 5" />
               <line x1="12" y1="19" x2="20" y2="19" />
             </svg>
-          )}
-          {paneMode === "ssh" && (
+          ) : paneMode === "ssh" ? (
             <svg
               className="terminal-pane__label-icon"
               width="10"
@@ -369,8 +384,8 @@ export default function TerminalPane({
               <path d="M10 14L21 3" />
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             </svg>
-          )}
-          {sessionLabel}
+          ) : null}
+          {!teamRole && sessionLabel}
         </span>
 
         {/* Claude mode toggle — shown when not in claude mode */}
@@ -499,6 +514,7 @@ export default function TerminalPane({
             key={`claude-native-${paneId}-${selectedMode}-${selectedModel}-${claudeResumeMode}`}
             shell="claude"
             shellArgs={claudeShellArgs}
+            env={paneEnv}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onSessionId={handleSessionId}

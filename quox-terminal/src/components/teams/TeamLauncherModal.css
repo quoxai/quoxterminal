@@ -1,0 +1,388 @@
+/* TeamLauncherModal — Agent Teams launcher overlay */
+
+.team-launcher-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+
+.team-launcher {
+  background: #0d1117;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(249, 115, 22, 0.08);
+  overflow: hidden;
+}
+
+.team-launcher__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.team-launcher__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.team-launcher__title-icon {
+  color: #f97316;
+  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.4));
+}
+
+.team-launcher__badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  color: #f97316;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.team-launcher__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.team-launcher__close:hover {
+  background: rgba(255, 48, 48, 0.15);
+  color: #ff6060;
+}
+
+.team-launcher__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* ── Template Gallery ── */
+
+.team-launcher__gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.team-launcher__card {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  position: relative;
+}
+
+.team-launcher__card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.team-launcher__card--selected {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.team-launcher__card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.team-launcher__card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.team-launcher__card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.team-launcher__card-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.team-launcher__card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.team-launcher__card-agents {
+  display: flex;
+  gap: 3px;
+}
+
+.team-launcher__card-agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* ── Customization Panel ── */
+
+.team-launcher__config {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.team-launcher__config-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.team-launcher__agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.team-launcher__agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.team-launcher__agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.team-launcher__agent-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-launcher__agent-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.team-launcher__agent-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.team-launcher__agent-lead-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.team-launcher__agent-model {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.team-launcher__agent-model:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Inputs ── */
+
+.team-launcher__field {
+  margin-bottom: 12px;
+}
+
+.team-launcher__field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.team-launcher__input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.team-launcher__input:focus {
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.team-launcher__input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Cost Banner ── */
+
+.team-launcher__cost {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(249, 115, 22, 0.06);
+  border: 1px solid rgba(249, 115, 22, 0.12);
+  margin-bottom: 14px;
+}
+
+.team-launcher__cost-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.team-launcher__cost-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f97316;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Footer ── */
+
+.team-launcher__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.team-launcher__footer-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.team-launcher__launch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.15s;
+}
+
+.team-launcher__launch-btn:hover {
+  background: rgba(249, 115, 22, 0.25);
+  border-color: rgba(249, 115, 22, 0.6);
+  color: #fb923c;
+}
+
+.team-launcher__launch-btn:active {
+  transform: scale(0.97);
+}
+
+.team-launcher__launch-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Onboarding Tooltip ── */
+
+.team-launcher__onboarding {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+  margin-bottom: 14px;
+}
+
+.team-launcher__onboarding-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.team-launcher__onboarding-dismiss {
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.team-launcher__onboarding-dismiss:hover {
+  background: rgba(249, 115, 22, 0.2);
+}

@@ -37,6 +37,10 @@ export interface PaneState {
   sessionId: string | null;
   /** Claude session ID (separate from PTY/SSH sessionId) */
   claudeSessionId?: string | null;
+  /** Environment variables passed to PTY spawn (e.g. agent teams env) */
+  env?: Record<string, string>;
+  /** Team role metadata when pane is part of an agent team */
+  teamRole?: { name: string; color: string; isLead: boolean };
 }
 
 export interface WorkspaceState {

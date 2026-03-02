@@ -76,6 +76,7 @@ interface TerminalEmbedProps {
   shell?: string;
   shellArgs?: string[];
   cwd?: string;
+  env?: Record<string, string>;
   sessionId?: string | null;
   onConnect?: () => void;
   onDisconnect?: (code?: number) => void;
@@ -93,6 +94,7 @@ export default function TerminalEmbed({
   shell,
   shellArgs,
   cwd,
+  env,
   sessionId: sessionIdProp,
   onConnect,
   onDisconnect,
@@ -186,10 +188,10 @@ export default function TerminalEmbed({
             isReconnect = true;
           } else {
             // Session died while we were away, spawn fresh
-            sid = await ptySpawn(shell, cwd, undefined, shellArgs);
+            sid = await ptySpawn(shell, cwd, env, shellArgs);
           }
         } else {
-          sid = await ptySpawn(shell, cwd, undefined, shellArgs);
+          sid = await ptySpawn(shell, cwd, env, shellArgs);
         }
 
         sessionIdRef.current = sid;
@@ -257,7 +259,7 @@ export default function TerminalEmbed({
         setStatus("error");
       }
     },
-    [shell, shellArgs, cwd, detachPty],
+    [shell, shellArgs, cwd, env, detachPty],
   );
 
   // Create terminal + initial connection

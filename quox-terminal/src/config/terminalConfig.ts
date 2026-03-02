@@ -121,6 +121,19 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
     ],
   },
   {
+    category: "Agent Teams",
+    items: [
+      {
+        keys: [modKey, "Shift", "A"],
+        ctrl: true,
+        shift: true,
+        key: "A",
+        action: "toggleTeams",
+        description: "Toggle Agent Teams modal",
+      },
+    ],
+  },
+  {
     category: "Claude Mode",
     items: [
       {

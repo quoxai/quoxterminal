@@ -1,0 +1,116 @@
+/* TeamControlBar — thin bar between tab bar and pane grid */
+
+.team-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 32px;
+  min-height: 32px;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.06) 0%, rgba(249, 115, 22, 0.02) 100%);
+  border-bottom: 1px solid rgba(249, 115, 22, 0.12);
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.team-control-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-control-bar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f97316;
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.5);
+  animation: team-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes team-dot-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(249, 115, 22, 0.5); }
+  50% { box-shadow: 0 0 10px rgba(249, 115, 22, 0.8); }
+}
+
+.team-control-bar__name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f97316;
+}
+
+.team-control-bar__elapsed {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.team-control-bar__center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-control-bar__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-control-bar__status-item {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.team-control-bar__status-item--running {
+  color: #22c55e;
+}
+
+.team-control-bar__status-item--idle {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.team-control-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-control-bar__btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.team-control-bar__btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.team-control-bar__btn--active {
+  border-color: rgba(249, 115, 22, 0.3);
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.team-control-bar__btn--stop {
+  border-color: rgba(234, 108, 115, 0.2);
+  color: rgba(234, 108, 115, 0.6);
+}
+
+.team-control-bar__btn--stop:hover {
+  background: rgba(234, 108, 115, 0.1);
+  border-color: rgba(234, 108, 115, 0.3);
+  color: #ea6c73;
+}
