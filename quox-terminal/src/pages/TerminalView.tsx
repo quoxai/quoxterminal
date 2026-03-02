@@ -17,7 +17,6 @@ import useTerminalWorkspace, {
 import useTeamSession from "../hooks/useTeamSession";
 import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
 import { getAgentEnv, type TeamTemplate } from "../config/teamConfig";
-import { getClaudeArgs, type ModelId } from "../config/terminalModes";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
 import QuoxSettings from "../components/settings/QuoxSettings";
@@ -171,10 +170,11 @@ export default function TerminalView() {
     suggestion: string;
   } | null>(null);
 
-  // Per-pane refs for clear/reconnect/connect
+  // Per-pane refs for clear/reconnect/connect/claude toggle
   const clearRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
   const reconnectRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
   const connectRefs = useRef<Record<string, React.MutableRefObject<((host: FleetHost) => void) | null>>>({});
+  const claudeToggleRefs = useRef<Record<string, React.MutableRefObject<(() => void) | null>>>({});
 
   // Ensure refs exist for all panes
   for (const pane of panes) {
@@ -186,6 +186,9 @@ export default function TerminalView() {
     }
     if (!connectRefs.current[pane.id]) {
       connectRefs.current[pane.id] = { current: null };
+    }
+    if (!claudeToggleRefs.current[pane.id]) {
+      claudeToggleRefs.current[pane.id] = { current: null };
     }
   }
 
@@ -360,11 +363,10 @@ export default function TerminalView() {
           setVimEnabled((prev) => !prev);
           break;
         case "toggleClaudeMode": {
-          // Toggle Claude mode on focused pane
-          const fp = panes.find((p) => p.id === focusedPaneId);
-          if (fp) {
-            const newMode = fp.mode === "claude" ? "local" : "claude";
-            updatePane(fp.id, { mode: newMode, hostId: "" });
+          // Toggle Claude mode on focused pane via ref (writes command to session)
+          const claudeRef = claudeToggleRefs.current[focusedPaneId];
+          if (claudeRef?.current) {
+            claudeRef.current();
           }
           break;
         }
@@ -885,6 +887,7 @@ export default function TerminalView() {
               clearRef={clearRefs.current[pane.id]}
               reconnectRef={reconnectRefs.current[pane.id]}
               connectRef={connectRefs.current[pane.id]}
+              claudeToggleRef={claudeToggleRefs.current[pane.id]}
               visible={true}
             />
           ))}

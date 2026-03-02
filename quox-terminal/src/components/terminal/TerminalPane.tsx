@@ -4,6 +4,10 @@
  * Renders a compact header with session type indicator and wraps TerminalEmbed.
  * Supports both local PTY sessions and SSH remote sessions.
  *
+ * Claude Code mode is a toggle overlay — it writes the `claude` CLI command
+ * into the existing terminal session (local or SSH) rather than spawning a
+ * separate PTY. This means Claude mode works on any connection.
+ *
  * When a collector/bastion is configured in Settings, the pane header shows a
  * "Connect" dropdown with the fleet host list (grouped by category). Selecting
  * a host auto-connects via SSH through the configured bastion. A "Manual SSH..."
@@ -13,7 +17,6 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
-import ClaudePaneEmbed from "../claude/ClaudePaneEmbed";
 import ClaudeStatusBar from "../claude/ClaudeStatusBar";
 import HostKnowledgeCard from "./HostKnowledgeCard";
 import ErrorNotificationBar from "./ErrorNotificationBar";
@@ -24,7 +27,8 @@ import HostPicker from "../hosts/HostPicker";
 import type { FleetHost } from "../../services/bastionClient";
 import useVimMode from "../../hooks/useVimMode";
 import { useTerminalErrorDetection } from "../../hooks/useTerminalErrorDetection";
-import { sshConnect, sshDisconnect } from "../../lib/tauri-ssh";
+import { sshConnect, sshDisconnect, sshWrite } from "../../lib/tauri-ssh";
+import { ptyWrite } from "../../lib/tauri-pty";
 import { storeGet } from "../../lib/store";
 import { getSessions, type SessionRecord } from "../../services/localMemoryStore";
 import {
@@ -63,7 +67,21 @@ interface TerminalPaneProps {
   clearRef?: React.MutableRefObject<(() => void) | null>;
   reconnectRef?: React.MutableRefObject<(() => void) | null>;
   connectRef?: React.MutableRefObject<((host: FleetHost) => void) | null>;
+  claudeToggleRef?: React.MutableRefObject<(() => void) | null>;
   visible?: boolean;
+}
+
+/** Write data to a session — local PTY or SSH. */
+async function writeToSession(
+  sessionId: string,
+  data: string,
+  mode: string,
+): Promise<void> {
+  if (mode === "ssh") {
+    await sshWrite(sessionId, data);
+  } else {
+    await ptyWrite(sessionId, data);
+  }
 }
 
 export default function TerminalPane({
@@ -88,6 +106,7 @@ export default function TerminalPane({
   clearRef,
   reconnectRef,
   connectRef,
+  claudeToggleRef,
   visible = true,
 }: TerminalPaneProps) {
   const scrollRef = useRef<{
@@ -101,20 +120,23 @@ export default function TerminalPane({
   const [sshConnecting, setSshConnecting] = useState(false);
   const [sshError, setSshError] = useState<string | null>(null);
 
-  // Claude mode state
-  const [claudeView, setClaudeView] = useState<"native" | "structured">("native");
+  // Claude mode — overlay toggle on the existing session (not a separate PTY)
+  const [claudeActive, setClaudeActive] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ModeId>(DEFAULT_MODE);
   const [selectedModel, setSelectedModel] = useState<ModelId>(DEFAULT_MODEL);
-  const [claudeResumeMode, setClaudeResumeMode] = useState<"new" | "continue" | "resume">("new");
   const [claudeProjectDetected, setClaudeProjectDetected] = useState(false);
   const [claudeMdPath, setClaudeMdPath] = useState<string | null>(null);
   const [claudeSessionStart, setClaudeSessionStart] = useState(() => Date.now());
 
-  // Load persisted mode and detect project when entering claude mode
+  // Load persisted mode on mount
   useEffect(() => {
-    if (paneMode === "claude") {
+    loadMode(paneId).then((saved) => setSelectedMode(saved));
+  }, [paneId]);
+
+  // Detect Claude project when claude becomes active
+  useEffect(() => {
+    if (claudeActive) {
       setClaudeSessionStart(Date.now());
-      loadMode(paneId).then((saved) => setSelectedMode(saved));
       homeDir().then((home) => {
         return detectClaudeProject(home);
       }).then((info) => {
@@ -124,35 +146,168 @@ export default function TerminalPane({
         console.warn("detectClaudeProject failed:", err);
       });
     }
-  }, [paneMode, paneId]);
+  }, [claudeActive]);
 
-  const handleClaudeModeChange = useCallback(
-    (mode: ModeId) => {
-      setSelectedMode(mode);
-      saveMode(paneId, mode);
-      setClaudeResumeMode("new");
-      setClaudeSessionStart(Date.now());
+  // Handle paneMode === "claude" (from teams or workspace restore):
+  // Set claudeActive and auto-write the claude command once session is ready
+  const autoLaunchedRef = useRef(false);
+  useEffect(() => {
+    if (paneMode === "claude" && !claudeActive) {
+      setClaudeActive(true);
+      autoLaunchedRef.current = false; // reset so we auto-launch when session appears
+    }
+  }, [paneMode, claudeActive]);
+
+  /** Build the `claude` command string with current mode/model args. */
+  const buildClaudeCommand = useCallback(
+    (resumeMode?: "continue" | "resume") => {
+      const args = getClaudeArgs(selectedMode, selectedModel);
+      if (resumeMode === "continue") args.push("--continue");
+      if (resumeMode === "resume") args.push("--resume");
+
+      // Build env prefix for team env vars
+      const envParts: string[] = [];
+      if (paneEnv) {
+        for (const [key, val] of Object.entries(paneEnv)) {
+          envParts.push(`${key}=${val}`);
+        }
+      }
+
+      const prefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
+      return `${prefix}claude${args.length > 0 ? " " + args.join(" ") : ""}`;
     },
-    [paneId],
+    [selectedMode, selectedModel, paneEnv],
   );
 
-  const handleModelChange = useCallback((model: ModelId) => {
-    setSelectedModel(model);
-    setClaudeResumeMode("new");
-    setClaudeSessionStart(Date.now());
-  }, []);
+  // Auto-write claude command when session becomes available for auto-launched panes
+  useEffect(() => {
+    if (paneMode === "claude" && claudeActive && sessionId && !autoLaunchedRef.current) {
+      autoLaunchedRef.current = true;
+      // Small delay to let the terminal initialize
+      const timer = setTimeout(() => {
+        const cmd = buildClaudeCommand();
+        writeToSession(sessionId, cmd + "\n", "local").catch((err) => {
+          console.error("Failed to auto-launch claude:", err);
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [paneMode, claudeActive, sessionId, buildClaudeCommand]);
 
-  const handleResume = useCallback((mode: "continue" | "resume") => {
-    setClaudeResumeMode(mode);
-    setClaudeSessionStart(Date.now());
-  }, []);
+  /** Toggle Claude mode ON — write the claude command to the session. */
+  const activateClaude = useCallback(
+    async (resumeMode?: "continue" | "resume") => {
+      if (!sessionId) return;
+      setClaudeActive(true);
+      setClaudeSessionStart(Date.now());
+      const cmd = buildClaudeCommand(resumeMode);
+      try {
+        await writeToSession(sessionId, cmd + "\n", paneMode);
+      } catch (err) {
+        console.error("Failed to write claude command:", err);
+      }
+    },
+    [sessionId, paneMode, buildClaudeCommand],
+  );
 
-  const claudeShellArgs = useMemo(() => {
-    const base = getClaudeArgs(selectedMode, selectedModel);
-    if (claudeResumeMode === "continue") return [...base, "--continue"];
-    if (claudeResumeMode === "resume") return [...base, "--resume"];
-    return base;
-  }, [selectedMode, selectedModel, claudeResumeMode]);
+  /** Toggle Claude mode OFF — send exit to leave Claude CLI. */
+  const deactivateClaude = useCallback(async () => {
+    setClaudeActive(false);
+    if (!sessionId) return;
+    try {
+      // Send /exit then Enter to cleanly exit Claude CLI
+      await writeToSession(sessionId, "/exit\n", paneMode);
+    } catch (err) {
+      console.error("Failed to exit claude:", err);
+    }
+  }, [sessionId, paneMode]);
+
+  // Expose toggle function via ref for external callers (TerminalView shortcuts)
+  useEffect(() => {
+    if (claudeToggleRef) {
+      claudeToggleRef.current = () => {
+        if (claudeActive) {
+          deactivateClaude();
+        } else {
+          activateClaude();
+        }
+      };
+    }
+    return () => {
+      if (claudeToggleRef) {
+        claudeToggleRef.current = null;
+      }
+    };
+  }, [claudeToggleRef, claudeActive, activateClaude, deactivateClaude]);
+
+  const handleClaudeModeChange = useCallback(
+    async (mode: ModeId) => {
+      setSelectedMode(mode);
+      saveMode(paneId, mode);
+      // Restart claude with new mode — exit then re-enter
+      if (claudeActive && sessionId) {
+        setClaudeActive(false);
+        try {
+          await writeToSession(sessionId, "/exit\n", paneMode);
+          // Give claude a moment to exit before respawning
+          setTimeout(async () => {
+            setClaudeActive(true);
+            setClaudeSessionStart(Date.now());
+            const args = getClaudeArgs(mode, selectedModel);
+            const envParts: string[] = [];
+            if (paneEnv) {
+              for (const [key, val] of Object.entries(paneEnv)) {
+                envParts.push(`${key}=${val}`);
+              }
+            }
+            const prefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
+            const cmd = `${prefix}claude${args.length > 0 ? " " + args.join(" ") : ""}`;
+            await writeToSession(sessionId, cmd + "\n", paneMode);
+          }, 500);
+        } catch (err) {
+          console.error("Failed to restart claude:", err);
+        }
+      }
+    },
+    [paneId, claudeActive, sessionId, paneMode, selectedModel, paneEnv],
+  );
+
+  const handleModelChange = useCallback(
+    async (model: ModelId) => {
+      setSelectedModel(model);
+      // Restart claude with new model
+      if (claudeActive && sessionId) {
+        setClaudeActive(false);
+        try {
+          await writeToSession(sessionId, "/exit\n", paneMode);
+          setTimeout(async () => {
+            setClaudeActive(true);
+            setClaudeSessionStart(Date.now());
+            const args = getClaudeArgs(selectedMode, model);
+            const envParts: string[] = [];
+            if (paneEnv) {
+              for (const [key, val] of Object.entries(paneEnv)) {
+                envParts.push(`${key}=${val}`);
+              }
+            }
+            const prefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
+            const cmd = `${prefix}claude${args.length > 0 ? " " + args.join(" ") : ""}`;
+            await writeToSession(sessionId, cmd + "\n", paneMode);
+          }, 500);
+        } catch (err) {
+          console.error("Failed to restart claude:", err);
+        }
+      }
+    },
+    [claudeActive, sessionId, paneMode, selectedMode, paneEnv],
+  );
+
+  const handleResume = useCallback(
+    (mode: "continue" | "resume") => {
+      activateClaude(mode);
+    },
+    [activateClaude],
+  );
 
   // Vim mode hook
   const { vimMode, vimKeyHandler } = useVimMode({
@@ -174,6 +329,7 @@ export default function TerminalPane({
   }, [paneId, onConnect]);
 
   const handleDisconnect = useCallback(() => {
+    setClaudeActive(false);
     onDisconnect(paneId);
   }, [paneId, onDisconnect]);
 
@@ -323,19 +479,22 @@ export default function TerminalPane({
 
   const showKnowledgeCard = paneMode === 'ssh' && paneHostId && !knowledgeCardDismissed && localSessions.length > 0;
 
-  // Session type label — team role overrides default label
+  // Session type label — team role overrides, then claude overlay, then mode
   const sessionLabel =
     teamRole ? teamRole.name :
-    paneMode === "claude" ? "Claude" :
+    claudeActive ? "Claude" :
     paneMode === "ssh" ? paneHostId || "SSH" : "Local";
   const sessionLabelClass =
     teamRole
       ? "terminal-pane__label terminal-pane__team-label"
-      : paneMode === "claude"
+      : claudeActive
         ? "terminal-pane__label terminal-pane__label--claude"
         : paneMode === "ssh"
           ? "terminal-pane__label terminal-pane__label--ssh"
           : "terminal-pane__label";
+
+  // Can we show the Claude toggle? Yes, whenever we have a live session (local or SSH)
+  const canToggleClaude = !claudeActive && !!sessionId && (paneMode === "local" || paneMode === "ssh");
 
   return (
     <div
@@ -353,7 +512,7 @@ export default function TerminalPane({
               {sessionLabel}
               {teamRole.isLead && <span className="terminal-pane__team-lead-badge">LEAD</span>}
             </>
-          ) : paneMode === "claude" ? (
+          ) : claudeActive ? (
             <svg
               className="terminal-pane__label-icon"
               width="10"
@@ -388,12 +547,12 @@ export default function TerminalPane({
           {!teamRole && sessionLabel}
         </span>
 
-        {/* Claude mode toggle — shown when not in claude mode */}
-        {paneMode !== "claude" && paneMode === "local" && (
+        {/* Claude toggle — available on both local and SSH when session is alive */}
+        {canToggleClaude && (
           <button
             className="terminal-pane__claude-btn"
-            onClick={() => onModeChange?.(paneId, "claude", "")}
-            title="Switch to Claude Mode (Ctrl+Shift+K)"
+            onClick={() => activateClaude()}
+            title="Start Claude Code (Ctrl+Shift+K)"
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="4 17 10 11 4 5" />
@@ -403,13 +562,13 @@ export default function TerminalPane({
           </button>
         )}
 
-        {/* Claude mode controls */}
-        {paneMode === "claude" && (
+        {/* Claude mode controls — shown when claude is active */}
+        {claudeActive && (
           <>
             <button
               className="terminal-pane__claude-btn terminal-pane__claude-btn--exit"
-              onClick={() => onModeChange?.(paneId, "local", "")}
-              title="Switch to Terminal"
+              onClick={deactivateClaude}
+              title="Exit Claude Code"
             >
               Terminal
             </button>
@@ -426,18 +585,11 @@ export default function TerminalPane({
                 </button>
               ))}
             </div>
-            <button
-              className={`terminal-pane__view-toggle${claudeView === "structured" ? " terminal-pane__view-toggle--active" : ""}`}
-              onClick={() => setClaudeView((v) => v === "native" ? "structured" : "native")}
-              title={claudeView === "native" ? "Switch to Structured View" : "Switch to Native Terminal"}
-            >
-              {claudeView === "native" ? "Structured" : "Native"}
-            </button>
           </>
         )}
 
-        {/* Host picker / SSH connect — shown when in local mode */}
-        {paneMode === "local" && (
+        {/* Host picker / SSH connect — shown when not in SSH mode and claude not active */}
+        {paneMode === "local" && !claudeActive && (
           <HostPicker
             onSelectHost={handleHostSelect}
             onManualSsh={() => setShowSshDialog(true)}
@@ -509,30 +661,8 @@ export default function TerminalPane({
           />
         )}
 
-        {paneMode === "claude" && claudeView === "native" ? (
-          <TerminalEmbed
-            key={`claude-native-${paneId}-${selectedMode}-${selectedModel}-${claudeResumeMode}`}
-            shell="claude"
-            shellArgs={claudeShellArgs}
-            env={paneEnv}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onSessionId={handleSessionId}
-            onData={handleData}
-            customKeyHandler={composedKeyHandler}
-            clearRef={clearRef}
-            reconnectRef={reconnectRef}
-            scrollRef={scrollRef}
-            visible={visible}
-          />
-        ) : paneMode === "claude" && claudeView === "structured" ? (
-          <ClaudePaneEmbed
-            key={`claude-structured-${paneId}`}
-            paneId={paneId}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-          />
-        ) : paneMode === "ssh" && sessionId ? (
+        {/* Single terminal — always the same component, Claude is just a command inside it */}
+        {paneMode === "ssh" && sessionId ? (
           <SshTerminalEmbed
             key={`ssh-${paneId}`}
             sessionId={sessionId}
@@ -549,6 +679,7 @@ export default function TerminalPane({
           <TerminalEmbed
             key={paneId}
             sessionId={sessionId}
+            env={paneEnv}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onSessionId={handleSessionId}
@@ -561,8 +692,8 @@ export default function TerminalPane({
           />
         )}
 
-        {/* Error detection bar — not shown in Claude mode */}
-        {paneMode !== "claude" && detectedError && (
+        {/* Error detection bar */}
+        {!claudeActive && detectedError && (
           <ErrorNotificationBar
             error={detectedError}
             onAction={(action, error) => onErrorAction?.(action, error)}
@@ -571,8 +702,8 @@ export default function TerminalPane({
           />
         )}
 
-        {/* Claude status bar overlay — native mode only */}
-        {paneMode === "claude" && claudeView === "native" && (
+        {/* Claude status bar overlay */}
+        {claudeActive && (
           <ClaudeStatusBar
             mode={selectedMode}
             model={selectedModel}

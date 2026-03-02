@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import React from "react";
 
 // Polyfill ResizeObserver for test environment
@@ -35,10 +35,14 @@ vi.mock("../../lib/tauri-pty", () => ({
 vi.mock("../../lib/tauri-ssh", () => ({
   sshConnect: vi.fn(),
   sshDisconnect: vi.fn(),
+  sshWrite: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../lib/tauri-claude", () => ({
-  detectClaudeProject: vi.fn().mockResolvedValue(null),
+  detectClaudeProject: vi.fn().mockResolvedValue({
+    is_claude_project: false,
+    claude_md_path: null,
+  }),
 }));
 
 vi.mock("../../lib/store", () => ({
@@ -66,6 +70,7 @@ vi.mock("@xterm/xterm", () => ({
     onResize: vi.fn().mockReturnValue({ dispose: vi.fn() }),
     attachCustomKeyEventHandler: vi.fn(),
     dispose: vi.fn(),
+    focus: vi.fn(),
     options: {},
     cols: 80,
     rows: 24,
@@ -90,10 +95,11 @@ vi.mock("@xterm/addon-web-links", () => ({
 import TerminalPane from "../components/terminal/TerminalPane";
 
 describe("Claude Native Mode", () => {
-  const defaultProps = {
+  // Claude mode activated via paneMode="claude" (legacy/team path)
+  const claudeProps = {
     paneId: "pane-1",
     paneMode: "claude",
-    sessionId: null,
+    sessionId: null as string | null,
     isFocused: true,
     showCloseBtn: true,
     onConnect: vi.fn(),
@@ -104,67 +110,77 @@ describe("Claude Native Mode", () => {
     onModeChange: vi.fn(),
   };
 
+  const localProps = {
+    ...claudeProps,
+    paneMode: "local",
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders mode selector pills in claude mode", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("renders mode selector pills in claude mode", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     expect(screen.getByText("Strict")).toBeDefined();
     expect(screen.getByText("Balanced")).toBeDefined();
     expect(screen.getByText("Builder")).toBeDefined();
     expect(screen.getByText("Audit")).toBeDefined();
   });
 
-  it("renders view toggle button in claude mode", () => {
-    render(<TerminalPane {...defaultProps} />);
-    expect(screen.getByText("Structured")).toBeDefined();
-  });
-
-  it("shows Terminal exit button in claude mode", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("shows Terminal exit button in claude mode", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     expect(screen.getByText("Terminal")).toBeDefined();
   });
 
-  it("does not render mode pills in local mode", () => {
-    render(<TerminalPane {...defaultProps} paneMode="local" />);
+  it("does not render mode pills in local mode", async () => {
+    await act(async () => {
+      render(<TerminalPane {...localProps} />);
+    });
     expect(screen.queryByText("Strict")).toBeNull();
     expect(screen.queryByText("Balanced")).toBeNull();
   });
 
-  it("switches view toggle text when clicked", () => {
-    render(<TerminalPane {...defaultProps} />);
-    const toggleBtn = screen.getByText("Structured");
-    fireEvent.click(toggleBtn);
-    // After clicking, it should show "Native" (the other view option)
-    expect(screen.getByText("Native")).toBeDefined();
-  });
-
-  it("renders Claude status bar label in native mode", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("renders Claude status bar label in claude mode", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     expect(screen.getByText("Claude Code")).toBeDefined();
   });
 
-  it("shows BALANCED as default active mode", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("shows BALANCED as default active mode", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     const balancedBtn = screen.getByText("Balanced");
     expect(balancedBtn.className).toContain("--active");
   });
 
-  it("clicking a mode pill makes it active", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("clicking a mode pill makes it active", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     const strictBtn = screen.getByText("Strict");
-    fireEvent.click(strictBtn);
+    await act(async () => {
+      fireEvent.click(strictBtn);
+    });
     expect(strictBtn.className).toContain("--active");
   });
 
-  it("mode change updates the active pill and status bar", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("mode change updates the active pill and status bar", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     // Default is Balanced
     expect(screen.getByText("Balanced").className).toContain("--active");
     // Click Builder
     const builderBtn = screen.getByText("Builder");
-    fireEvent.click(builderBtn);
+    await act(async () => {
+      fireEvent.click(builderBtn);
+    });
     expect(builderBtn.className).toContain("--active");
     // Balanced should no longer be active
     expect(screen.getByText("Balanced").className).not.toContain("--active");
@@ -172,40 +188,90 @@ describe("Claude Native Mode", () => {
     expect(screen.getByText("BUILDER")).toBeDefined();
   });
 
-  it("view toggle renders correct component label", () => {
-    render(<TerminalPane {...defaultProps} />);
-    // In native mode, toggle says "Structured"
-    expect(screen.getByText("Structured")).toBeDefined();
-    // Click to switch to structured
-    fireEvent.click(screen.getByText("Structured"));
-    // Now it should say "Native"
-    expect(screen.getByText("Native")).toBeDefined();
-    // Click back
-    fireEvent.click(screen.getByText("Native"));
-    expect(screen.getByText("Structured")).toBeDefined();
-  });
-
-  it("renders model picker with default model", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("renders model picker with default model", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     expect(screen.getByText("Sonnet 4.6")).toBeDefined();
   });
 
-  it("renders resume buttons", () => {
-    render(<TerminalPane {...defaultProps} />);
+  it("renders resume buttons", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} />);
+    });
     expect(screen.getByText("Continue")).toBeDefined();
     expect(screen.getByText("Resume")).toBeDefined();
   });
 
-  it("does not render quick actions without sessionId", () => {
-    render(<TerminalPane {...defaultProps} sessionId={null} />);
+  it("does not render quick actions without sessionId", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} sessionId={null} />);
+    });
     expect(screen.queryByText("/compact")).toBeNull();
   });
 
-  it("renders quick actions with sessionId", () => {
-    render(<TerminalPane {...defaultProps} sessionId="test-session-123" />);
+  it("renders quick actions with sessionId", async () => {
+    await act(async () => {
+      render(<TerminalPane {...claudeProps} sessionId="test-session-123" />);
+    });
     expect(screen.getByText("/compact")).toBeDefined();
     expect(screen.getByText("/cost")).toBeDefined();
     expect(screen.getByText("/clear")).toBeDefined();
     expect(screen.getByText("/model")).toBeDefined();
+  });
+
+  it("shows Claude toggle button on local pane with session", async () => {
+    await act(async () => {
+      render(<TerminalPane {...localProps} sessionId="test-session" />);
+    });
+    // Should show Claude button on local pane
+    expect(screen.getByText("Claude")).toBeDefined();
+  });
+
+  it("shows Claude toggle button on SSH pane with session", async () => {
+    await act(async () => {
+      render(
+        <TerminalPane
+          {...localProps}
+          paneMode="ssh"
+          paneHostId="user@host"
+          sessionId="ssh-session"
+        />,
+      );
+    });
+    // Should show Claude button on SSH pane
+    expect(screen.getByText("Claude")).toBeDefined();
+  });
+
+  it("does not show Claude toggle without sessionId", async () => {
+    await act(async () => {
+      render(<TerminalPane {...localProps} sessionId={null} />);
+    });
+    // No Claude button without a session
+    expect(screen.queryByTitle("Start Claude Code (Ctrl+Shift+K)")).toBeNull();
+  });
+
+  it("shows team role badge when teamRole is set", async () => {
+    await act(async () => {
+      render(
+        <TerminalPane
+          {...claudeProps}
+          teamRole={{ name: "Architect", color: "#f97316", isLead: true }}
+        />,
+      );
+    });
+    expect(screen.getByText("Architect")).toBeDefined();
+    expect(screen.getByText("LEAD")).toBeDefined();
+  });
+
+  it("exposes toggle via claudeToggleRef", async () => {
+    const toggleRef = { current: null as (() => void) | null };
+    await act(async () => {
+      render(
+        <TerminalPane {...localProps} sessionId="test-session" claudeToggleRef={toggleRef} />,
+      );
+    });
+    // After mount, the ref should be populated
+    expect(toggleRef.current).toBeInstanceOf(Function);
   });
 });
