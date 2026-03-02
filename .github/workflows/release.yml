@@ -71,6 +71,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: "-"
         with:
           projectPath: quox-terminal
           tauriScript: npx tauri
@@ -87,6 +88,16 @@ jobs:
             | macOS (Intel) | `.dmg` (x64) |
             | Linux (Debian/Ubuntu) | `.deb` package |
             | Linux (universal) | `.AppImage` |
+
+            ### macOS — first launch
+
+            macOS blocks apps downloaded from the internet. After dragging QuoxTerminal to Applications, open **Terminal.app** and run:
+
+            ```
+            xattr -cr /Applications/QuoxTerminal.app
+            ```
+
+            Then open QuoxTerminal normally. You only need to do this once per download.
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
