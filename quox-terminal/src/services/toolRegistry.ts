@@ -190,7 +190,7 @@ const TOOLS: ToolDefinition[] = [
         label: "Host",
         type: "text",
         flag: "--host",
-        placeholder: "docker01",
+        placeholder: "hostname",
       },
       {
         name: "input",

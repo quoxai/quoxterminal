@@ -11,7 +11,7 @@
 /// Authentication credentials for the collector.
 #[derive(Debug, Clone)]
 pub struct CollectorAuth {
-    /// Base URL of the collector (e.g., "ws://10.0.0.126:9848")
+    /// Base URL of the collector (e.g., "ws://localhost:9848")
     pub collector_url: String,
     /// API token for authentication
     pub token: String,

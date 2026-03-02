@@ -41,10 +41,10 @@ describe('entityExtractor', () => {
 
   describe('ip pattern', () => {
     it('extracts IPv4 address', () => {
-      const result = extractEntities('ssh root@192.168.88.247');
+      const result = extractEntities('ssh root@192.168.1.100');
       const ips = result.filter((e) => e.type === 'ip');
       expect(ips.length).toBe(1);
-      expect(ips[0].value).toBe('192.168.88.247');
+      expect(ips[0].value).toBe('192.168.1.100');
     });
 
     it('extracts multiple IPs', () => {

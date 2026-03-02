@@ -411,7 +411,7 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
                       <label>Bastion Host</label>
                       <input
                         type="text"
-                        placeholder="access01 or 192.168.88.247"
+                        placeholder="bastion.example.com or 192.168.1.1"
                         value={config.bastionHost}
                         onChange={(e) => updateField("bastionHost", e.target.value)}
                       />

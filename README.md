@@ -177,7 +177,7 @@ QuoxTerminal authenticates with the Anthropic API using one of three methods (in
 
 To use fleet management features, configure your Quox Collector connection in Settings:
 
-- **Collector URL** -- WebSocket endpoint (e.g., `ws://10.0.0.126:9848`)
+- **Collector URL** -- WebSocket endpoint (e.g., `ws://localhost:9848`)
 - **Collector Token** -- API bearer token for authentication
 
 ### SSH Keys
