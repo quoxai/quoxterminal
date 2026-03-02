@@ -469,7 +469,7 @@ export default function QuoxSettings({ isOpen, onClose }: QuoxSettingsProps) {
               <div className="quox-settings__about">
                 <img src="/quox-logo-large.png" alt="QuoxTerminal" className="quox-settings__about-logo" />
                 <h2 className="quox-settings__about-name">QuoxTerminal</h2>
-                <span className="quox-settings__about-version">v0.1.0</span>
+                <span className="quox-settings__about-version">v{__APP_VERSION__}</span>
                 <p className="quox-settings__about-desc">
                   Desktop terminal for the Quox fleet management platform.
                   Connect to remote hosts via SSH, manage infrastructure
