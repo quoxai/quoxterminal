@@ -58,6 +58,8 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   transition: all 0.15s ease;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .terminal-pane__claude-btn:hover {

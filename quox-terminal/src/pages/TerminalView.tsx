@@ -180,6 +180,16 @@ export default function TerminalView() {
       const ws = workspaces.find((w) => w.id === wsId);
       const activeSessions = ws?.panes.filter((p) => p.sessionId) || [];
 
+      // Confirm before closing a tab with active sessions
+      if (activeSessions.length > 0) {
+        const count = activeSessions.length;
+        const msg =
+          count === 1
+            ? "This tab has an active session. Close it?"
+            : `This tab has ${count} active sessions. Close them all?`;
+        if (!window.confirm(msg)) return;
+      }
+
       // Kill all sessions in the workspace (local PTY + SSH)
       activeSessions.forEach((p) => {
         if (p.sessionId) {
