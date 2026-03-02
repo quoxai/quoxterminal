@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/dev/core/tauri-config-schema/schema.json",
   "productName": "QuoxTerminal",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.quox.terminal",
   "build": {
     "beforeDevCommand": "npm run dev",
