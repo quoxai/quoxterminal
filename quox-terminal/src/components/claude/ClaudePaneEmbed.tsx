@@ -6,11 +6,18 @@
  * and an input bar.
  */
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import ClaudeConversation from "./ClaudeConversation";
 import ClaudeInputBar from "./ClaudeInputBar";
 import useClaudeSession from "../../hooks/useClaudeSession";
 import { estimateCost } from "../../config/claudeConfig";
+import {
+  TERMINAL_MODES,
+  DEFAULT_MODE,
+  loadMode,
+  saveMode,
+  type ModeId,
+} from "../../config/terminalModes";
 import "./ClaudePaneEmbed.css";
 
 interface ClaudePaneEmbedProps {
@@ -22,6 +29,8 @@ interface ClaudePaneEmbedProps {
   onDisconnect?: () => void;
   /** Extra CLI args to pass to Claude */
   extraArgs?: string[];
+  /** Pane ID for persisting mode selection */
+  paneId?: string;
 }
 
 export default function ClaudePaneEmbed({
@@ -29,11 +38,28 @@ export default function ClaudePaneEmbed({
   onConnect,
   onDisconnect,
   extraArgs,
+  paneId,
 }: ClaudePaneEmbedProps) {
   const { state, spawn, sendMessage, approveToolCall, denyToolCall, kill } =
     useClaudeSession();
 
   const hasSpawned = useRef(false);
+  const [selectedMode, setSelectedMode] = useState<ModeId>(DEFAULT_MODE);
+
+  // Load persisted mode
+  useEffect(() => {
+    if (paneId) {
+      loadMode(paneId).then((saved) => setSelectedMode(saved));
+    }
+  }, [paneId]);
+
+  const handleModeChange = useCallback(
+    (mode: ModeId) => {
+      setSelectedMode(mode);
+      if (paneId) saveMode(paneId, mode);
+    },
+    [paneId],
+  );
 
   // Auto-spawn on mount
   useEffect(() => {
@@ -103,6 +129,23 @@ export default function ClaudePaneEmbed({
         {cost > 0 && (
           <span className="claude-pane__cost">${cost.toFixed(2)}</span>
         )}
+        <div className="claude-pane__mode-row">
+          {Object.values(TERMINAL_MODES).map((mode) => (
+            <button
+              key={mode.id}
+              className={`claude-pane__mode-btn${selectedMode === mode.id ? " claude-pane__mode-btn--active" : ""}`}
+              onClick={() => handleModeChange(mode.id)}
+              title={mode.description}
+              style={
+                selectedMode === mode.id
+                  ? { borderColor: mode.color, color: mode.color }
+                  : undefined
+              }
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
         <div className="claude-pane__spacer" />
         <span
           className={`claude-pane__status claude-pane__status--${state.status}`}

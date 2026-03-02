@@ -409,6 +409,7 @@ export default function TerminalPane({
         {paneMode === "claude" ? (
           <ClaudePaneEmbed
             key={`claude-${paneId}`}
+            paneId={paneId}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
           />

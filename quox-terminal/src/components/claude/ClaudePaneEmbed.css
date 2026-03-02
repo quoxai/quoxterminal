@@ -44,6 +44,38 @@
   flex: 1;
 }
 
+/* Mode selector pills */
+.claude-pane__mode-row {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.claude-pane__mode-btn {
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 9px;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+
+.claude-pane__mode-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.claude-pane__mode-btn--active {
+  background: rgba(56, 189, 248, 0.08);
+  font-weight: 600;
+}
+
 .claude-pane__status {
   font-size: 10px;
   font-weight: 500;
