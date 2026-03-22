@@ -1,68 +1,42 @@
-<!-- Last verified: 2026-03-14 by /codebase-mirror -->
+<!-- Last verified: 2026-03-21 by /codebase-mirror -->
 
 # QuoxTerminal — Codebase Map
 
 ## Metrics
+
 | Metric | Count |
 |--------|-------|
-| Rust Modules | 10 directories, 41 .rs files |
-| Rust LOC | 4,423 |
-| React Components | 45 files |
-| React Services | 15 files |
-| React Hooks | 8 files |
-| Test Files | 35 |
 | Version | 0.3.1 |
+| Rust modules (src-tauri/src/) | 41 files across 11 modules |
+| React components (.tsx) | ~45 |
+| Test files | 44 |
 
-## Authoritative Files
-| File | Purpose |
-|------|---------|
-| `quox-terminal/package.json` | Frontend config, v0.3.1 |
-| `quox-terminal/src-tauri/Cargo.toml` | Rust config, v0.3.1 |
-| `quox-terminal/src-tauri/src/commands.rs` | Tauri command handlers |
-| `quox-terminal/src-tauri/src/main.rs` | Entry point |
+## Stack
 
-## Invariants
-| Check | Status | Details |
-|-------|--------|---------|
-| Test coverage | ✓ pass | 35 test files |
-| Dual platform | ✓ pass | macOS (Apple Silicon + Intel) + Linux (x64) |
-| Component coverage | ✓ pass | 45 components across 8 categories |
+Tauri 2.0, Rust (backend), React 19 + TypeScript (frontend), xterm.js
 
-## Rust Backend Modules
-| Module | Files | Purpose |
-|--------|-------|---------|
-| ai/ | 4 | AI client, context, streaming |
-| claude/ | 4 | Claude detection, parsing, sessions |
-| collector/ | 3 | Collector auth, WebSocket client |
-| fs/ | 3 | File operations, validation |
-| memory/ | 2 | Memory service, commands |
-| pty/ | 4 | PTY manager, sessions, shell |
-| safety/ | 3 | Command denylist, validation |
-| settings/ | 3 | Font, shell configuration |
-| shell_integration/ | 3 | CWD tracking, prompt detection |
-| ssh/ | 5 | SSH client, key manager, sessions |
+## Rust Backend Modules (src-tauri/src/)
 
-## React Component Categories
-| Category | Count | Key Components |
-|----------|-------|---------------|
-| claude/ | 15 | ClaudeConversation, ClaudeInputBar, TokenBudgetGauge, ToolCallCard |
-| terminal/ | 14 | TerminalPane, TerminalChat, SessionRestoreBanner, FileChangeCard |
-| hosts/ | 2 | FleetDashboard, HostPicker |
-| teams/ | 3 | TaskBoard, TeamControlBar, TeamLauncherModal |
-| settings/ | 4 | AppearanceSettings, GeneralSettings, QuoxSettings |
-| tools/ | 2 | ToolPalette, ToolParamModal |
-| safety/ | 1 | CommandWarning |
-| ui/ | 1 | Modal |
+| Module | Files |
+|--------|-------|
+| ai/ | client.rs, context.rs, streaming.rs, mod.rs |
+| claude/ | parser.rs, session.rs, detect.rs, mod.rs |
+| collector/ | ws_client.rs, auth.rs, mod.rs |
+| fs/ | validation.rs, operations.rs, mod.rs |
+| memory/ | commands.rs, mod.rs |
+| pty/ | manager.rs, session.rs, shell.rs, mod.rs |
+| safety/ | denylist.rs, validator.rs, mod.rs |
+| settings/ | fonts.rs, shells.rs, mod.rs |
+| shell_integration/ | cwd_tracking.rs, prompt_detection.rs, mod.rs |
+| ssh/ | client.rs, key_manager.rs, session.rs, known_hosts.rs, mod.rs |
+| root | main.rs, lib.rs, commands.rs, state.rs, tray.rs, hotkey.rs, updater.rs |
 
-## React Services (15)
-agentDefinitionService, bastionClient, claudeOutputParser, claudeSessionTracker, claudeTrustProfile, fleetService, localMemoryStore, teamHistoryService, teamOutputMonitor, teamStorageService, terminalContextBuilder, terminalExecService, terminalFileService, terminalMemoryBridge, toolRegistry
+## React Frontend Components
 
-## React Hooks (8)
-useClaudeSession, useCommandSafety, useFleetStatus, useSettings, useTeamSession, useTerminalErrorDetection, useTerminalWorkspace, useVimMode
+Key areas: terminal/, claude/, hosts/, teams/, tools/, safety/, settings/, ui/
 
-## Key Dependencies
-- **Rust:** tauri 2.x, russh 0.46, portable-pty 0.8, reqwest 0.12, tokio 1.x
-- **Frontend:** React 19, xterm.js 5.5, Vite 6, Vitest 3, TypeScript 5.6
+Notable components: TerminalChat, TerminalEmbed, TerminalPane, ClaudeConversation, ClaudeInputBar, FleetDashboard, TeamLauncherModal, TaskBoard, ToolPalette, CommandWarning
 
-## Platforms
-macOS (Apple Silicon + Intel): .dmg | Linux (x64): .deb + .AppImage | Windows: not supported
+## Test Files (44)
+
+Located in quox-terminal/src/__tests__/. Covers: terminal core, Claude integration, fleet dashboard, session persistence, error detection, memory bridge, tool palette, team management, native mode, trust profiles, and more.
