@@ -85,7 +85,13 @@ export default function useClaudeSession(): UseClaudeSessionReturn {
 
   const handleEvent = useCallback((rawEvent: ClaudeEvent) => {
     setState((prev) => {
-      const messages = [...prev.messages];
+      // Deep-copy messages to avoid mutating previous state objects.
+      // Shallow array copy ([...prev.messages]) shares object references,
+      // causing React to see stale/mutated state under rapid streaming.
+      const messages = prev.messages.map((m) => ({
+        ...m,
+        toolCalls: m.toolCalls.map((tc) => ({ ...tc })),
+      }));
       let { model, inputTokens, outputTokens, cacheReadTokens, status } = prev;
 
       switch (rawEvent.type) {
@@ -105,7 +111,7 @@ export default function useClaudeSession(): UseClaudeSessionReturn {
         }
 
         case "content_block_delta": {
-          // Append text to current assistant message
+          // Append text to current assistant message (now safe — message is a fresh copy)
           const lastMsg = messages[messages.length - 1];
           if (lastMsg && lastMsg.type === "assistant") {
             lastMsg.text += rawEvent.text;
@@ -137,15 +143,18 @@ export default function useClaudeSession(): UseClaudeSessionReturn {
           // Find the tool call and update it
           for (let i = messages.length - 1; i >= 0; i--) {
             const msg = messages[i];
-            const tc = msg.toolCalls.find(
+            const tcIdx = msg.toolCalls.findIndex(
               (t) => t.id === rawEvent.tool_id,
             );
-            if (tc) {
-              tc.output = rawEvent.output;
-              tc.status = rawEvent.is_error ? "error" : "done";
-              tc.duration = rawEvent.duration_ms;
-              tc.isError = rawEvent.is_error;
-              tc.collapsed = true; // collapse completed tool calls
+            if (tcIdx !== -1) {
+              msg.toolCalls[tcIdx] = {
+                ...msg.toolCalls[tcIdx],
+                output: rawEvent.output,
+                status: rawEvent.is_error ? "error" : "done",
+                duration: rawEvent.duration_ms,
+                isError: rawEvent.is_error,
+                collapsed: true, // collapse completed tool calls
+              };
               break;
             }
           }

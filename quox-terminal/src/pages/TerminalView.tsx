@@ -67,52 +67,52 @@ const LAYOUT_LABELS: Record<LayoutPreset, string> = {
 
 const LAYOUT_ICONS: Record<LayoutPreset, React.ReactNode> = {
   single: (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="12" height="12" rx="1" />
     </svg>
   ),
   "split-h": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="5.5" height="12" rx="1" />
       <rect x="7.5" y="1" width="5.5" height="12" rx="1" />
     </svg>
   ),
   "split-v": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="12" height="5.5" rx="1" />
       <rect x="1" y="7.5" width="12" height="5.5" rx="1" />
     </svg>
   ),
   "main-side": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="8" height="12" rx="1" />
       <rect x="10" y="1" width="3" height="5.5" rx="1" />
       <rect x="10" y="7.5" width="3" height="5.5" rx="1" />
     </svg>
   ),
   "side-main": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="3" height="5.5" rx="1" />
       <rect x="1" y="7.5" width="3" height="5.5" rx="1" />
       <rect x="5" y="1" width="8" height="12" rx="1" />
     </svg>
   ),
   "top-split": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="12" height="8" rx="1" />
       <rect x="1" y="10" width="5.5" height="3" rx="1" />
       <rect x="7.5" y="10" width="5.5" height="3" rx="1" />
     </svg>
   ),
   "split-top": (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="5.5" height="3" rx="1" />
       <rect x="7.5" y="1" width="5.5" height="3" rx="1" />
       <rect x="1" y="5" width="12" height="8" rx="1" />
     </svg>
   ),
   quad: (
-    <svg viewBox="0 0 14 14" fill="currentColor">
+    <svg viewBox="0 0 14 14" style={{ fill: 'rgba(255, 255, 255, 0.7)' }}>
       <rect x="1" y="1" width="5.5" height="5.5" rx="1" />
       <rect x="7.5" y="1" width="5.5" height="5.5" rx="1" />
       <rect x="1" y="7.5" width="5.5" height="5.5" rx="1" />
@@ -201,16 +201,6 @@ export default function TerminalView() {
       const ws = workspaces.find((w) => w.id === wsId);
       const activeSessions = ws?.panes.filter((p) => p.sessionId) || [];
 
-      // Confirm before closing a tab with active sessions
-      if (activeSessions.length > 0) {
-        const count = activeSessions.length;
-        const msg =
-          count === 1
-            ? "This tab has an active session. Close it?"
-            : `This tab has ${count} active sessions. Close them all?`;
-        if (!window.confirm(msg)) return;
-      }
-
       // Kill all sessions in the workspace (local PTY + SSH)
       activeSessions.forEach((p) => {
         if (p.sessionId) {
@@ -220,6 +210,14 @@ export default function TerminalView() {
             ptyKill(p.sessionId).catch(() => {});
           }
         }
+      });
+
+      // Clean refs for panes in the closing workspace
+      ws?.panes.forEach((p) => {
+        delete clearRefs.current[p.id];
+        delete reconnectRefs.current[p.id];
+        delete connectRefs.current[p.id];
+        delete claudeToggleRefs.current[p.id];
       });
 
       removeWorkspace(wsId);
@@ -326,6 +324,12 @@ export default function TerminalView() {
       const action = matchShortcut(event);
       if (!action) return true; // pass to terminal
 
+      // When modals/sidebars are open, only allow toggle actions to close them
+      if (showSettings || teamsModalOpen || showShortcuts) {
+        // Let Escape be handled by the modal itself
+        return true;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 
@@ -387,6 +391,9 @@ export default function TerminalView() {
       addWorkspace,
       handleWorkspaceClose,
       activeWorkspaceId,
+      showSettings,
+      teamsModalOpen,
+      showShortcuts,
     ],
   );
 
@@ -422,16 +429,27 @@ export default function TerminalView() {
 
   const handlePaneClose = useCallback(
     (paneId: string) => {
-      // Kill sessions of panes that will be removed (index 1+)
-      panes.slice(1).forEach((p) => {
-        if (p.sessionId) {
-          if (p.mode === "ssh") {
-            sshDisconnect(p.sessionId).catch(() => {});
-          } else {
-            ptyKill(p.sessionId).catch(() => {});
+      // Kill the closed pane's session, plus any panes beyond index 0
+      // (layout reverts to single, keeping only pane-0)
+      panes.forEach((p) => {
+        if (p.id === paneId || panes.indexOf(p) > 0) {
+          if (p.sessionId) {
+            if (p.mode === "ssh") {
+              sshDisconnect(p.sessionId).catch(() => {});
+            } else {
+              ptyKill(p.sessionId).catch(() => {});
+            }
           }
         }
       });
+
+      // Clean stale pane refs
+      const keepId = panes[0]?.id;
+      for (const refMap of [clearRefs, reconnectRefs, connectRefs, claudeToggleRefs]) {
+        for (const id of Object.keys(refMap.current)) {
+          if (id !== keepId) delete refMap.current[id];
+        }
+      }
 
       setLayout("single");
     },
@@ -454,6 +472,15 @@ export default function TerminalView() {
       setRenamingTabId(null);
     }
   }, [renamingTabId, renameValue, renameWorkspace]);
+
+  // ── Close sidebars/modals on workspace tab switch ──────────────────
+  useEffect(() => {
+    setChatOpen(false);
+    setFleetOpen(false);
+    setToolsOpen(false);
+    setShowSettings(false);
+    setShowShortcuts(false);
+  }, [activeWorkspaceId]);
 
   // ── Migrate legacy localStorage data on mount ─────────────────────────
 
@@ -540,18 +567,25 @@ export default function TerminalView() {
     });
   }, []);
 
+  // ── Refs for window close handlers (avoid stale closures) ──────────
+
+  const workspacesRef = useRef(workspaces);
+  const sessionCountRef = useRef(sessionCount);
+  workspacesRef.current = workspaces;
+  sessionCountRef.current = sessionCount;
+
   // ── Close prevention & PTY cleanup on app close ───────────────────────
 
   useEffect(() => {
-    if (sessionCount === 0) return;
     const handler = () => {
-      // Save state and clean up — don't block the close
-      saveSessionState(workspaces);
-      killAllSessions(workspaces);
+      if (sessionCountRef.current > 0) {
+        saveSessionState(workspacesRef.current);
+        killAllSessions(workspacesRef.current);
+      }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [sessionCount, workspaces, saveSessionState, killAllSessions]);
+  }, [saveSessionState, killAllSessions]);
 
   // ── Tauri native window close guard ──────────────────────────────────
 
@@ -560,10 +594,9 @@ export default function TerminalView() {
 
     getCurrentWindow()
       .onCloseRequested(() => {
-        if (sessionCount > 0) {
-          // Save session state and clean up before closing
-          saveSessionState(workspaces);
-          killAllSessions(workspaces);
+        if (sessionCountRef.current > 0) {
+          saveSessionState(workspacesRef.current);
+          killAllSessions(workspacesRef.current);
         }
       })
       .then((fn) => {
@@ -576,7 +609,7 @@ export default function TerminalView() {
     return () => {
       if (unlisten) unlisten();
     };
-  }, [sessionCount, workspaces, saveSessionState, killAllSessions]);
+  }, [saveSessionState, killAllSessions]);
 
   // ── Layout change with confirmation ────────────────────────────────────
 
@@ -654,8 +687,8 @@ export default function TerminalView() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="2" width="20" height="8" rx="2" />
               <rect x="2" y="14" width="20" height="8" rx="2" />
-              <circle cx="6" cy="6" r="1" fill="currentColor" />
-              <circle cx="6" cy="18" r="1" fill="currentColor" />
+              <circle cx="6" cy="6" r="1" style={{ fill: 'rgba(255, 255, 255, 0.7)' }} />
+              <circle cx="6" cy="18" r="1" style={{ fill: 'rgba(255, 255, 255, 0.7)' }} />
             </svg>
           </button>
 

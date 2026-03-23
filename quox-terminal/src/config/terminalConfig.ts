@@ -144,14 +144,6 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
         action: "toggleClaudeMode",
         description: "Toggle Claude mode on focused pane",
       },
-      {
-        keys: [modKey, "Shift", "I"],
-        ctrl: true,
-        shift: true,
-        key: "I",
-        action: "toggleClaudeContext",
-        description: "Toggle Claude context panel",
-      },
     ],
   },
   {
@@ -187,6 +179,12 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
  * Returns the action string if matched, null otherwise.
  */
 export function matchShortcut(event: KeyboardEvent): string | null {
+  // Don't intercept shortcuts when typing in form fields
+  const target = event.target as HTMLElement;
+  if (target?.matches?.('input, textarea, select, [contenteditable="true"]')) {
+    return null;
+  }
+
   const key = event.key;
   const ctrl = event.ctrlKey || event.metaKey;
   const shift = event.shiftKey;

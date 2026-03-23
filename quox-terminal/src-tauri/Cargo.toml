@@ -1,6 +1,6 @@
 [package]
 name = "quox-terminal"
-version = "0.3.1"
+version = "0.3.2"
 description = "QuoxTerminal Desktop — native terminal with AI integration"
 authors = ["Quox Ltd"]
 license = "BUSL-1.1"
