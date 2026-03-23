@@ -14,7 +14,7 @@ import {
   type ToolCall,
   type ClaudeEvent,
 } from "../services/claudeOutputParser";
-import { playNotificationBeep } from "../utils/notificationBeep";
+import { playNotificationBeep, requestWindowAttention } from "../utils/notificationBeep";
 
 export type SessionStatus =
   | "idle"
@@ -76,12 +76,17 @@ export default function useClaudeSession(): UseClaudeSessionReturn {
     };
   }, []);
 
-  // Beep when Claude transitions to waiting for user input
+  // Beep + bounce dock icon + flash tab when Claude transitions to waiting
   useEffect(() => {
     if (state.status === "waiting") {
       playNotificationBeep();
+      requestWindowAttention();
+      // Dispatch custom event so workspace tabs can flash
+      window.dispatchEvent(new CustomEvent("claude-waiting", {
+        detail: { sessionId: state.sessionId },
+      }));
     }
-  }, [state.status]);
+  }, [state.status, state.sessionId]);
 
   const handleEvent = useCallback((rawEvent: ClaudeEvent) => {
     setState((prev) => {

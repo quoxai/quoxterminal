@@ -163,6 +163,7 @@ export default function TerminalView() {
   const [renameValue, setRenameValue] = useState("");
   const [previousSessions, setPreviousSessions] = useState<PreviousSession[]>([]);
   const [paneErrors, setPaneErrors] = useState<Record<string, boolean>>({});
+  const [tabFlashing, setTabFlashing] = useState(false);
   const [pendingErrorAction, setPendingErrorAction] = useState<{
     action: 'explain' | 'fix';
     errorType: string;
@@ -488,6 +489,17 @@ export default function TerminalView() {
     migrateFromLocalStorage().catch(() => {});
   }, []);
 
+  // ── Flash active tab when Claude is waiting for input ───────────────
+  useEffect(() => {
+    const handler = () => {
+      setTabFlashing(true);
+      // Stop flashing after 4 seconds
+      setTimeout(() => setTabFlashing(false), 4000);
+    };
+    window.addEventListener("claude-waiting", handler);
+    return () => window.removeEventListener("claude-waiting", handler);
+  }, []);
+
   // ── Load previous sessions on mount (for restore banner) ──────────────
 
   useEffect(() => {
@@ -778,7 +790,7 @@ export default function TerminalView() {
           return (
             <button
               key={ws.id}
-              className={`terminal-view__tab ${isActive ? "terminal-view__tab--active" : ""}`}
+              className={`terminal-view__tab ${isActive ? "terminal-view__tab--active" : ""} ${isActive && tabFlashing ? "terminal-view__tab--flash" : ""}`}
               onClick={() => setActiveWorkspace(ws.id)}
               onDoubleClick={() => startRename(ws.id, ws.name)}
             >

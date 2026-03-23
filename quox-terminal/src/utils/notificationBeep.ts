@@ -1,3 +1,5 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 /**
  * Play a short two-tone notification beep using Web Audio API.
  * Used to alert the user when Claude is waiting for input.
@@ -30,5 +32,23 @@ export function playNotificationBeep(): void {
     setTimeout(() => ctx.close().catch(() => {}), totalDuration * 1000 + 100);
   } catch {
     // Audio not available (e.g. no audio device) — silently ignore
+  }
+}
+
+/**
+ * Request window attention (bounces dock icon on macOS, flashes taskbar on Linux).
+ * Only fires if the window is not currently focused.
+ */
+export function requestWindowAttention(): void {
+  try {
+    const win = getCurrentWindow();
+    win.isFocused().then((focused) => {
+      if (!focused) {
+        // Informational = gentle bounce (one-time), Critical = continuous
+        win.requestUserAttention(2); // 2 = Informational
+      }
+    }).catch(() => {});
+  } catch {
+    // Not in Tauri environment
   }
 }

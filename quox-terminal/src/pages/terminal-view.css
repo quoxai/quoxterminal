@@ -443,6 +443,23 @@
   background: rgba(56, 189, 248, 0.06);
 }
 
+/* Flash tab when Claude is waiting for input */
+.terminal-view__tab--flash {
+  animation: tab-flash 0.6s ease-in-out 6;
+}
+
+@keyframes tab-flash {
+  0%, 100% {
+    background: rgba(56, 189, 248, 0.04);
+    border-bottom-color: #38bdf8;
+  }
+  50% {
+    background: rgba(251, 191, 36, 0.15);
+    border-bottom-color: #fbbf24;
+    color: #fbbf24;
+  }
+}
+
 .terminal-view__tab-name {
   max-width: 140px;
   overflow: hidden;
