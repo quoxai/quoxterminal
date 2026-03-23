@@ -39,6 +39,7 @@ interface SshTerminalEmbedProps {
   customKeyHandler?: (event: KeyboardEvent) => boolean;
   clearRef?: React.MutableRefObject<(() => void) | null>;
   scrollRef?: React.MutableRefObject<ScrollRef | null>;
+  fontSize?: number;
   visible?: boolean;
 }
 
@@ -51,6 +52,7 @@ export default function SshTerminalEmbed({
   customKeyHandler,
   clearRef,
   scrollRef,
+  fontSize = 14,
   visible = true,
 }: SshTerminalEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -108,7 +110,7 @@ export default function SshTerminalEmbed({
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: "block",
-      fontSize: 14,
+      fontSize,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: TERM_THEME,
       allowProposedApi: true,
@@ -220,6 +222,14 @@ export default function SshTerminalEmbed({
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // Update font size on live terminal when it changes
+  useEffect(() => {
+    if (termRef.current && termRef.current.options.fontSize !== fontSize) {
+      termRef.current.options.fontSize = fontSize;
+      try { fitAddonRef.current?.fit(); } catch (_) {}
+    }
+  }, [fontSize]);
 
   // Refit when becoming visible
   useEffect(() => {

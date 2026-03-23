@@ -15,6 +15,10 @@ export const TERMINAL_LIMITS = {
   MAX_WORKSPACES: 8,
   MAX_SCROLLBACK: 5000,
   WORKSPACE_WARN_THRESHOLD: 7,
+  MIN_FONT_SIZE: 8,
+  MAX_FONT_SIZE: 32,
+  DEFAULT_FONT_SIZE: 14,
+  FONT_SIZE_STEP: 1,
 };
 
 // ── Keyboard Shortcuts ──────────────────────────────────────────────────────
@@ -143,6 +147,35 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
         key: "K",
         action: "toggleClaudeMode",
         description: "Toggle Claude mode on focused pane",
+      },
+    ],
+  },
+  {
+    category: "Zoom",
+    items: [
+      {
+        keys: [modKey, "="],
+        ctrl: true,
+        shift: false,
+        key: "=",
+        action: "zoomIn",
+        description: "Zoom in (increase font size)",
+      },
+      {
+        keys: [modKey, "-"],
+        ctrl: true,
+        shift: false,
+        key: "-",
+        action: "zoomOut",
+        description: "Zoom out (decrease font size)",
+      },
+      {
+        keys: [modKey, "0"],
+        ctrl: true,
+        shift: false,
+        key: "0",
+        action: "zoomReset",
+        description: "Reset zoom to default",
       },
     ],
   },

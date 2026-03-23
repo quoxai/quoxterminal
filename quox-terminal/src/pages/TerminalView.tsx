@@ -15,7 +15,8 @@ import useTerminalWorkspace, {
   type WorkspaceState,
 } from "../hooks/useTerminalWorkspace";
 import useTeamSession from "../hooks/useTeamSession";
-import { matchShortcut, TERMINAL_SHORTCUTS } from "../config/terminalConfig";
+import useSettings from "../hooks/useSettings";
+import { matchShortcut, TERMINAL_SHORTCUTS, TERMINAL_LIMITS } from "../config/terminalConfig";
 import { getAgentEnv, type TeamTemplate } from "../config/teamConfig";
 import TerminalPane from "../components/terminal/TerminalPane";
 import TerminalChat from "../components/terminal/TerminalChat";
@@ -150,6 +151,8 @@ export default function TerminalView() {
     clearTeam,
     isTeamActive,
   } = useTeamSession();
+
+  const { settings, updateSetting } = useSettings();
 
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -381,6 +384,15 @@ export default function TerminalView() {
         case "toggleTeams":
           setTeamsModalOpen((prev) => !prev);
           break;
+        case "zoomIn":
+          updateSetting("fontSize", Math.min(settings.fontSize + TERMINAL_LIMITS.FONT_SIZE_STEP, TERMINAL_LIMITS.MAX_FONT_SIZE));
+          break;
+        case "zoomOut":
+          updateSetting("fontSize", Math.max(settings.fontSize - TERMINAL_LIMITS.FONT_SIZE_STEP, TERMINAL_LIMITS.MIN_FONT_SIZE));
+          break;
+        case "zoomReset":
+          updateSetting("fontSize", TERMINAL_LIMITS.DEFAULT_FONT_SIZE);
+          break;
       }
 
       return false; // consumed
@@ -388,6 +400,8 @@ export default function TerminalView() {
     [
       panes,
       focusedPaneId,
+      settings.fontSize,
+      updateSetting,
       setFocusedPane,
       addWorkspace,
       handleWorkspaceClose,
@@ -680,6 +694,31 @@ export default function TerminalView() {
           >
             {sessionCount} session{sessionCount !== 1 ? "s" : ""}
           </span>
+
+          {/* Zoom controls */}
+          <div className="terminal-view__zoom">
+            <button
+              className="terminal-view__zoom-btn"
+              onClick={() => updateSetting("fontSize", Math.max(settings.fontSize - TERMINAL_LIMITS.FONT_SIZE_STEP, TERMINAL_LIMITS.MIN_FONT_SIZE))}
+              title="Zoom out (Cmd/Ctrl+-)"
+            >
+              −
+            </button>
+            <button
+              className="terminal-view__zoom-label"
+              onClick={() => updateSetting("fontSize", TERMINAL_LIMITS.DEFAULT_FONT_SIZE)}
+              title="Reset zoom (Cmd/Ctrl+0)"
+            >
+              {settings.fontSize}px
+            </button>
+            <button
+              className="terminal-view__zoom-btn"
+              onClick={() => updateSetting("fontSize", Math.min(settings.fontSize + TERMINAL_LIMITS.FONT_SIZE_STEP, TERMINAL_LIMITS.MAX_FONT_SIZE))}
+              title="Zoom in (Cmd/Ctrl+=)"
+            >
+              +
+            </button>
+          </div>
         </div>
 
         <div className="terminal-view__header-right">
@@ -933,6 +972,7 @@ export default function TerminalView() {
               reconnectRef={reconnectRefs.current[pane.id]}
               connectRef={connectRefs.current[pane.id]}
               claudeToggleRef={claudeToggleRefs.current[pane.id]}
+              fontSize={settings.fontSize}
               visible={true}
             />
           ))}

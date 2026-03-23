@@ -68,6 +68,7 @@ interface TerminalPaneProps {
   reconnectRef?: React.MutableRefObject<(() => void) | null>;
   connectRef?: React.MutableRefObject<((host: FleetHost) => void) | null>;
   claudeToggleRef?: React.MutableRefObject<(() => void) | null>;
+  fontSize?: number;
   visible?: boolean;
 }
 
@@ -107,6 +108,7 @@ export default function TerminalPane({
   reconnectRef,
   connectRef,
   claudeToggleRef,
+  fontSize,
   visible = true,
 }: TerminalPaneProps) {
   const scrollRef = useRef<{
@@ -673,6 +675,7 @@ export default function TerminalPane({
             customKeyHandler={composedKeyHandler}
             clearRef={clearRef}
             scrollRef={scrollRef}
+            fontSize={fontSize}
             visible={visible}
           />
         ) : (
@@ -688,6 +691,7 @@ export default function TerminalPane({
             clearRef={clearRef}
             reconnectRef={reconnectRef}
             scrollRef={scrollRef}
+            fontSize={fontSize}
             visible={visible}
           />
         )}

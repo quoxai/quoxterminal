@@ -86,6 +86,7 @@ interface TerminalEmbedProps {
   clearRef?: React.MutableRefObject<(() => void) | null>;
   reconnectRef?: React.MutableRefObject<(() => void) | null>;
   scrollRef?: React.MutableRefObject<ScrollRef | null>;
+  fontSize?: number;
   className?: string;
   visible?: boolean;
 }
@@ -104,6 +105,7 @@ export default function TerminalEmbed({
   clearRef,
   reconnectRef,
   scrollRef,
+  fontSize = 14,
   className = "",
   visible = true,
 }: TerminalEmbedProps) {
@@ -272,7 +274,7 @@ export default function TerminalEmbed({
     const term = new Terminal({
       cursorBlink: true,
       cursorStyle: "block",
-      fontSize: 14,
+      fontSize,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       theme: TERM_THEME,
       allowProposedApi: true,
@@ -368,6 +370,16 @@ export default function TerminalEmbed({
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shell, cwd]);
+
+  // Update font size on live terminal when it changes
+  useEffect(() => {
+    if (termRef.current && termRef.current.options.fontSize !== fontSize) {
+      termRef.current.options.fontSize = fontSize;
+      try {
+        fitAddonRef.current?.fit();
+      } catch (_) {}
+    }
+  }, [fontSize]);
 
   // Refit terminal when workspace becomes visible (tab switch)
   useEffect(() => {
