@@ -5,7 +5,7 @@
 ## Metrics
 | Metric | Count |
 |--------|-------|
-| Version | 0.3.2 |
+| Version | 0.3.3 |
 | Rust Backend Files | 42 |
 | Rust Modules | 11 |
 | React Components | 45+ |
