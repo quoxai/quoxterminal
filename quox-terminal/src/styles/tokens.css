@@ -1,0 +1,117 @@
+/**
+ * Design tokens — QuoxTerminal File Explorer + Editor
+ *
+ * Derived from Warp, Zed, VS Code Dark Modern, Cursor, Linear, Vercel Geist.
+ * See docs/FILE_EXPLORER_EDITOR_DESIGN_SPEC.md for the full reference.
+ *
+ * Usage: import in App.css or main.tsx. Reference via var(--token-name).
+ * These tokens are scoped to file explorer / editor components but designed
+ * to be usable across the entire app when ready.
+ */
+
+:root {
+  /* === Backgrounds (layered from darkest to lightest) === */
+  --fe-bg-base: #0a0e14;
+  --fe-bg-surface: #0d1117;
+  --fe-bg-elevated: #151a22;
+  --fe-bg-overlay: #1a2030;
+  --fe-bg-editor: #0a0e14;
+
+  /* === Brand accents === */
+  --fe-accent-cyan: #38bdf8;
+  --fe-accent-cyan-dim: #0891b2;
+  --fe-accent-violet: #a78bfa;
+  --fe-accent-violet-dim: #7c3aed;
+
+  /* === Text hierarchy === */
+  --fe-text-primary: rgba(255, 255, 255, 0.92);
+  --fe-text-secondary: rgba(255, 255, 255, 0.68);
+  --fe-text-tertiary: rgba(255, 255, 255, 0.45);
+  --fe-text-ghost: rgba(255, 255, 255, 0.28);
+
+  /* === Borders === */
+  --fe-border-subtle: rgba(255, 255, 255, 0.06);
+  --fe-border-default: rgba(255, 255, 255, 0.10);
+  --fe-border-strong: rgba(255, 255, 255, 0.16);
+  --fe-border-accent: rgba(56, 189, 248, 0.40);
+
+  /* === Interactive states === */
+  --fe-hover-bg: rgba(255, 255, 255, 0.05);
+  --fe-active-bg: rgba(255, 255, 255, 0.08);
+  --fe-selected-bg: rgba(56, 189, 248, 0.10);
+  --fe-selected-bg-inactive: rgba(255, 255, 255, 0.06);
+  --fe-focus-ring: 0 0 0 2px rgba(56, 189, 248, 0.40);
+
+  /* === Semantic colours === */
+  --fe-success: #4ade80;
+  --fe-warning: #f59e0b;
+  --fe-error: #f87171;
+  --fe-info: #38bdf8;
+
+  /* === Diff colours === */
+  --fe-diff-added-bg: rgba(74, 222, 128, 0.12);
+  --fe-diff-added-border: rgba(74, 222, 128, 0.40);
+  --fe-diff-removed-bg: rgba(248, 113, 113, 0.12);
+  --fe-diff-removed-border: rgba(248, 113, 113, 0.40);
+
+  /* === Typography === */
+  --fe-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --fe-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  --fe-font-size-xs: 10px;
+  --fe-font-size-sm: 11px;
+  --fe-font-size-md: 12px;
+  --fe-font-size-base: 13px;
+  --fe-font-size-lg: 14px;
+
+  /* === Spacing === */
+  --fe-space-1: 4px;
+  --fe-space-2: 8px;
+  --fe-space-3: 12px;
+  --fe-space-4: 16px;
+  --fe-space-5: 20px;
+  --fe-space-6: 24px;
+
+  /* === Radii === */
+  --fe-radius-sm: 4px;
+  --fe-radius-md: 6px;
+  --fe-radius-lg: 8px;
+
+  /* === Shadows === */
+  --fe-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --fe-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --fe-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  /* === Transitions === */
+  --fe-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --fe-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --fe-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --fe-duration-fast: 100ms;
+  --fe-duration-normal: 150ms;
+  --fe-duration-smooth: 200ms;
+
+  /* === Layout === */
+  --fe-sidebar-width: 240px;
+  --fe-sidebar-min-width: 180px;
+  --fe-sidebar-max-width: 400px;
+  --fe-tree-item-height: 28px;
+  --fe-tree-indent: 16px;
+  --fe-tab-height: 36px;
+  --fe-breadcrumb-height: 26px;
+
+  /* === File type icon colours === */
+  --fe-icon-typescript: #3178c6;
+  --fe-icon-javascript: #d4a017;
+  --fe-icon-react: #61dafb;
+  --fe-icon-rust: #ce422b;
+  --fe-icon-python: #3776ab;
+  --fe-icon-go: #00add8;
+  --fe-icon-json: #a8b1c2;
+  --fe-icon-markdown: #7b8794;
+  --fe-icon-yaml: #8b6914;
+  --fe-icon-html: #e44d26;
+  --fe-icon-css: #264de4;
+  --fe-icon-shell: #4eaa25;
+  --fe-icon-config: #7b8794;
+  --fe-icon-folder: #38bdf8;
+  --fe-icon-folder-open: #7dd3fc;
+}

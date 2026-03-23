@@ -147,6 +147,12 @@ pub fn fs_rename_file(old_path: String, new_path: String) -> Result<(), String> 
     crate::fs::operations::rename_file(&old_path, &new_path)
 }
 
+/// List directory entries (directories first, then files, alphabetical).
+#[tauri::command]
+pub fn fs_list_dir(path: String) -> Result<Vec<crate::fs::operations::DirEntry>, String> {
+    crate::fs::operations::list_dir(&path)
+}
+
 /// Validate a command against the safety denylist.
 #[tauri::command]
 pub fn validate_command(command: String) -> crate::safety::validator::ValidationResult {

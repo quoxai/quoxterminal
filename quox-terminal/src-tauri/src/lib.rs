@@ -69,6 +69,7 @@ pub fn run() {
             commands::fs_write_file,
             commands::fs_delete_file,
             commands::fs_rename_file,
+            commands::fs_list_dir,
             commands::validate_command,
             commands::chat_send,
             commands::chat_send_stream,
