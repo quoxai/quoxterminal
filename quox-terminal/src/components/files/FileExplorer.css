@@ -1,0 +1,365 @@
+/* FileExplorer — Left sidebar for file tree browsing.
+ *
+ * Uses --fe-* design tokens from styles/tokens.css.
+ * Follows existing sidebar pattern (FleetDashboard, TerminalChat).
+ */
+
+/* ═══ Container ═══ */
+
+.fe-explorer {
+  display: flex;
+  flex-direction: column;
+  width: var(--fe-sidebar-width, 240px);
+  min-width: var(--fe-sidebar-min-width, 180px);
+  max-width: var(--fe-sidebar-max-width, 400px);
+  flex-shrink: 0;
+  background: var(--fe-bg-surface, #0d1117);
+  border-right: 1px solid rgba(56, 189, 248, 0.12);
+  font-family: var(--fe-font-ui);
+  animation: fe-slide-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes fe-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ═══ Header ═══ */
+
+.fe-explorer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 var(--fe-space-3, 12px);
+  background: linear-gradient(180deg, #0f1920 0%, #0d1117 100%);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+}
+
+.fe-explorer__title {
+  font-size: var(--fe-font-size-sm, 11px);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--fe-text-tertiary, rgba(255, 255, 255, 0.45));
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.fe-explorer__actions {
+  display: flex;
+  gap: 2px;
+}
+
+.fe-explorer__action-btn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--fe-radius-sm, 4px);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: background 100ms ease-out, color 100ms ease-out;
+}
+
+.fe-explorer__action-btn:hover {
+  background: var(--fe-hover-bg, rgba(255, 255, 255, 0.05));
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ═══ Breadcrumb ═══ */
+
+.fe-explorer__breadcrumb {
+  padding: var(--fe-space-1, 4px) var(--fe-space-3, 12px);
+  font-family: var(--fe-font-mono, monospace);
+  font-size: var(--fe-font-size-xs, 10px);
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+/* ═══ Filter ═══ */
+
+.fe-explorer__filter {
+  position: relative;
+  padding: var(--fe-space-2, 8px) var(--fe-space-3, 12px);
+  border-bottom: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.fe-explorer__filter-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 28px 0 var(--fe-space-2, 8px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--fe-border-default, rgba(255, 255, 255, 0.10));
+  border-radius: var(--fe-radius-sm, 4px);
+  font-family: var(--fe-font-mono, monospace);
+  font-size: var(--fe-font-size-md, 12px);
+  color: var(--fe-text-primary, rgba(255, 255, 255, 0.92));
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.fe-explorer__filter-input::placeholder {
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+}
+
+.fe-explorer__filter-input:focus {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.15);
+}
+
+.fe-explorer__filter-clear {
+  all: unset;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.fe-explorer__filter-clear:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══ Tree container ═══ */
+
+.fe-explorer__tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.fe-explorer__tree::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fe-explorer__tree::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fe-explorer__tree::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.12);
+  border-radius: 3px;
+}
+
+.fe-explorer__tree::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.25);
+}
+
+/* ═══ Tree ═══ */
+
+.fe-tree {
+  outline: none;
+  padding: var(--fe-space-1, 4px) 0;
+}
+
+/* ═══ Tree Item ═══ */
+
+.fe-tree-item {
+  display: flex;
+  align-items: center;
+  height: var(--fe-tree-item-height, 28px);
+  padding-right: var(--fe-space-3, 12px);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background 100ms ease-out;
+  gap: 4px;
+}
+
+.fe-tree-item:hover {
+  background: var(--fe-hover-bg, rgba(255, 255, 255, 0.05));
+}
+
+.fe-tree-item--selected {
+  background: var(--fe-selected-bg, rgba(56, 189, 248, 0.10));
+  border-left: 2px solid var(--fe-accent-cyan, #38bdf8);
+}
+
+.fe-tree-item--selected:hover {
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.fe-tree-item--hidden {
+  opacity: 0.55;
+}
+
+/* Indent guides */
+.fe-tree-item__guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.fe-tree-item--selected .fe-tree-item__guide {
+  background: var(--fe-border-default, rgba(255, 255, 255, 0.10));
+}
+
+/* Chevron */
+.fe-tree-item__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--fe-text-tertiary, rgba(255, 255, 255, 0.45));
+  transition: transform 150ms ease-out;
+}
+
+.fe-tree-item__chevron--open {
+  transform: rotate(90deg);
+}
+
+.fe-tree-item__chevron-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* Icon */
+.fe-tree-item__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
+  font-family: var(--fe-font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Name */
+.fe-tree-item__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fe-font-size-base, 13px);
+  color: var(--fe-text-secondary, rgba(255, 255, 255, 0.68));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--fe-tree-item-height, 28px);
+}
+
+.fe-tree-item__name--dir {
+  font-weight: 600;
+  color: var(--fe-text-primary, rgba(255, 255, 255, 0.92));
+}
+
+.fe-tree-item__symlink {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+}
+
+/* Size badge */
+.fe-tree-item__size {
+  flex-shrink: 0;
+  font-family: var(--fe-font-mono, monospace);
+  font-size: var(--fe-font-size-xs, 10px);
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+  margin-left: auto;
+  padding-left: var(--fe-space-2, 8px);
+}
+
+/* ═══ Loading skeleton ═══ */
+
+.fe-tree--loading {
+  padding: var(--fe-space-2, 8px) 0;
+}
+
+.fe-tree__skeleton {
+  display: flex;
+  align-items: center;
+  height: var(--fe-tree-item-height, 28px);
+  gap: 6px;
+  animation: fe-skeleton-fade 1500ms linear infinite;
+}
+
+.fe-tree__skeleton-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fe-tree__skeleton-label {
+  height: 10px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes fe-skeleton-fade {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* ═══ Error state ═══ */
+
+.fe-tree--error {
+  padding: var(--fe-space-4, 16px) var(--fe-space-3, 12px);
+}
+
+.fe-tree__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fe-space-2, 8px);
+  font-size: var(--fe-font-size-md, 12px);
+  color: var(--fe-error, #f87171);
+}
+
+.fe-tree__error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.15);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fe-tree__error-text {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ═══ Empty state ═══ */
+
+.fe-tree--empty {
+  padding: var(--fe-space-6, 24px) var(--fe-space-3, 12px);
+}
+
+.fe-tree__empty {
+  font-size: var(--fe-font-size-md, 12px);
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+  font-style: italic;
+  text-align: center;
+}

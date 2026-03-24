@@ -57,6 +57,36 @@
 }
 
 /* Fleet toggle button */
+/* File Explorer toggle button */
+.terminal-view__files-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.terminal-view__files-btn:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+.terminal-view__files-btn:active {
+  transform: scale(0.92);
+}
+.terminal-view__files-btn--active {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+.terminal-view__files-btn--active:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
 .terminal-view__fleet-btn {
   display: flex;
   align-items: center;

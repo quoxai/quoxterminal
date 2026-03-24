@@ -27,6 +27,7 @@ import TeamLauncherModal from "../components/teams/TeamLauncherModal";
 import TeamControlBar from "../components/teams/TeamControlBar";
 import TaskBoard from "../components/teams/TaskBoard";
 import SessionRestoreBanner from "../components/terminal/SessionRestoreBanner";
+import FileExplorer from "../components/files/FileExplorer";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
 import { ptyKill } from "../lib/tauri-pty";
@@ -161,6 +162,7 @@ export default function TerminalView() {
   const [chatOpen, setChatOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [fileExplorerOpen, setFileExplorerOpen] = useState(false);
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -384,6 +386,9 @@ export default function TerminalView() {
         case "toggleTeams":
           setTeamsModalOpen((prev) => !prev);
           break;
+        case "toggleFileExplorer":
+          setFileExplorerOpen((prev) => !prev);
+          break;
         case "zoomIn":
           updateSetting("fontSize", Math.min(settings.fontSize + TERMINAL_LIMITS.FONT_SIZE_STEP, TERMINAL_LIMITS.MAX_FONT_SIZE));
           break;
@@ -493,6 +498,7 @@ export default function TerminalView() {
     setChatOpen(false);
     setFleetOpen(false);
     setToolsOpen(false);
+    setFileExplorerOpen(false);
     setShowSettings(false);
     setShowShortcuts(false);
   }, [activeWorkspaceId]);
@@ -729,6 +735,17 @@ export default function TerminalView() {
             {sessionCount > 0 ? "Active" : "Idle"}
           </div>
 
+          {/* File Explorer toggle */}
+          <button
+            className={`terminal-view__files-btn ${fileExplorerOpen ? "terminal-view__files-btn--active" : ""}`}
+            onClick={() => setFileExplorerOpen((prev) => !prev)}
+            title="File Explorer (Ctrl+Shift+E)"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ stroke: 'rgba(255, 255, 255, 0.7)' }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+
           {/* Fleet Dashboard toggle */}
           <button
             className={`terminal-view__fleet-btn ${fleetOpen ? "terminal-view__fleet-btn--active" : ""}`}
@@ -944,8 +961,20 @@ export default function TerminalView() {
         />
       )}
 
-      {/* Main content — terminal grid + optional chat sidebar */}
+      {/* Main content — optional file explorer + terminal grid + optional chat sidebar */}
       <div className={`terminal-view__main ${chatOpen || fleetOpen || toolsOpen || taskBoardOpen ? "terminal-view__main--chat-open" : ""}`}>
+        {/* File Explorer sidebar (left) */}
+        {fileExplorerOpen && (
+          <FileExplorer
+            rootPath="/"
+            onFileOpen={(path) => {
+              // For now, log the file open — Phase 3 will add editor pane mode
+              console.log("[FileExplorer] Open file:", path);
+            }}
+            onClose={() => setFileExplorerOpen(false)}
+          />
+        )}
+
         <div className="terminal-view__body" data-layout={layout}>
           {panes.map((pane) => (
             <TerminalPane

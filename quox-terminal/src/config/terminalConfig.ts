@@ -101,6 +101,14 @@ export const TERMINAL_SHORTCUTS: ShortcutCategory[] = [
         action: "toggleTools",
         description: "Toggle tool palette",
       },
+      {
+        keys: [modKey, "Shift", "E"],
+        ctrl: true,
+        shift: true,
+        key: "E",
+        action: "toggleFileExplorer",
+        description: "Toggle file explorer",
+      },
     ],
   },
   {
