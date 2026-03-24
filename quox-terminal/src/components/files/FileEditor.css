@@ -1,0 +1,204 @@
+/* FileEditor + FileEditorTabs CSS
+ *
+ * Uses --fe-* design tokens from styles/tokens.css.
+ */
+
+/* ═══ Editor container ═══ */
+
+.fe-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fe-editor .cm-editor {
+  height: 100%;
+}
+
+.fe-editor .cm-scroller {
+  overflow: auto;
+}
+
+/* ═══ Editor pane wrapper (inside TerminalPane) ═══ */
+
+.fe-editor-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--fe-bg-editor, #0a0e14);
+}
+
+/* ═══ Tab bar ═══ */
+
+.fe-editor-tabs-wrapper {
+  flex-shrink: 0;
+}
+
+.fe-editor-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 36px;
+  background: var(--fe-bg-surface, #0d1117);
+  border-bottom: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.fe-editor-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Single tab */
+.fe-editor-tab {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 36px;
+  border-right: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+  font-size: 13px;
+  color: var(--fe-text-secondary, rgba(255, 255, 255, 0.68));
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 100ms ease-out, color 100ms ease-out;
+  position: relative;
+}
+
+.fe-editor-tab:hover {
+  background: var(--fe-hover-bg, rgba(255, 255, 255, 0.05));
+}
+
+.fe-editor-tab--active {
+  color: var(--fe-text-primary, rgba(255, 255, 255, 0.92));
+  background: var(--fe-bg-editor, #0a0e14);
+  border-top: 2px solid var(--fe-accent-cyan, #38bdf8);
+}
+
+.fe-editor-tab--active:hover {
+  background: var(--fe-bg-editor, #0a0e14);
+}
+
+/* Tab icon (file type) */
+.fe-editor-tab__icon {
+  font-family: var(--fe-font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+
+/* Tab file name */
+.fe-editor-tab__name {
+  font-family: var(--fe-font-ui, sans-serif);
+  font-size: 13px;
+}
+
+.fe-editor-tab--active .fe-editor-tab__name {
+  font-weight: 500;
+}
+
+/* Close button */
+.fe-editor-tab__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 100ms, background 100ms, color 100ms;
+}
+
+.fe-editor-tab:hover .fe-editor-tab__close {
+  opacity: 1;
+}
+
+.fe-editor-tab__close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fe-text-primary, rgba(255, 255, 255, 0.92));
+}
+
+/* Dirty indicator (unsaved dot) */
+.fe-editor-tab__dirty {
+  font-size: 8px;
+  color: var(--fe-accent-cyan, #38bdf8);
+  flex-shrink: 0;
+}
+
+/* ═══ Breadcrumb ═══ */
+
+.fe-editor-breadcrumb {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  background: var(--fe-bg-editor, #0a0e14);
+  border-bottom: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+  font-family: var(--fe-font-mono, monospace);
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.fe-editor-breadcrumb__segment {
+  color: var(--fe-text-tertiary, rgba(255, 255, 255, 0.45));
+}
+
+.fe-editor-breadcrumb__current {
+  color: var(--fe-text-secondary, rgba(255, 255, 255, 0.68));
+  font-weight: 500;
+}
+
+.fe-editor-breadcrumb__sep {
+  margin: 0 6px;
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+}
+
+/* ═══ Empty state (no file open) ═══ */
+
+.fe-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+}
+
+.fe-editor-empty__icon {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+.fe-editor-empty__text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fe-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.fe-editor-empty__hint {
+  font-size: 13px;
+  color: var(--fe-text-tertiary, rgba(255, 255, 255, 0.45));
+}
+
+/* ═══ Footer (line count, file size) ═══ */
+
+.fe-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--fe-bg-surface, #0d1117);
+  border-top: 1px solid var(--fe-border-subtle, rgba(255, 255, 255, 0.06));
+  font-family: var(--fe-font-mono, monospace);
+  font-size: 10px;
+  color: var(--fe-text-ghost, rgba(255, 255, 255, 0.28));
+  flex-shrink: 0;
+}

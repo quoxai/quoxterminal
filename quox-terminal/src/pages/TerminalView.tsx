@@ -31,6 +31,7 @@ import FileExplorer from "../components/files/FileExplorer";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
 import { ptyKill, ptyList } from "../lib/tauri-pty";
+import { fsReadFile } from "../lib/tauri-fs";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import { storeGet, storeSet } from "../lib/store";
 import { migrateFromLocalStorage } from "../services/localMemoryStore";
@@ -164,6 +165,8 @@ export default function TerminalView() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [fileExplorerOpen, setFileExplorerOpen] = useState(false);
   const [explorerRootPath, setExplorerRootPath] = useState("/");
+  const [editorFiles, setEditorFiles] = useState<Array<{ path: string; name: string; content: string; dirty: boolean }>>([]);
+  const [activeEditorFile, setActiveEditorFile] = useState<string | null>(null);
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -996,8 +999,26 @@ export default function TerminalView() {
           <FileExplorer
             rootPath={explorerRootPath}
             onFileOpen={(path) => {
-              // For now, log the file open — Phase 3 will add editor pane mode
-              console.log("[FileExplorer] Open file:", path);
+              // Open file in editor — read content, add to open files, switch pane to editor mode
+              const fileName = path.split("/").pop() || path;
+              // Already open? Just focus it
+              if (editorFiles.some((f) => f.path === path)) {
+                setActiveEditorFile(path);
+                updatePane(focusedPaneId, { mode: "editor" });
+                return;
+              }
+              fsReadFile(path)
+                .then((content) => {
+                  setEditorFiles((prev) => [
+                    ...prev,
+                    { path, name: fileName, content, dirty: false },
+                  ]);
+                  setActiveEditorFile(path);
+                  updatePane(focusedPaneId, { mode: "editor" });
+                })
+                .catch((err) => {
+                  console.error("[FileExplorer] Failed to open:", err);
+                });
             }}
             onClose={() => setFileExplorerOpen(false)}
           />
@@ -1031,6 +1052,29 @@ export default function TerminalView() {
               claudeToggleRef={claudeToggleRefs.current[pane.id]}
               fontSize={settings.fontSize}
               visible={true}
+              editorFiles={editorFiles}
+              activeEditorFile={activeEditorFile}
+              onEditorSelectFile={setActiveEditorFile}
+              onEditorCloseFile={(path) => {
+                setEditorFiles((prev) => prev.filter((f) => f.path !== path));
+                if (activeEditorFile === path) {
+                  const remaining = editorFiles.filter((f) => f.path !== path);
+                  setActiveEditorFile(remaining.length > 0 ? remaining[0].path : null);
+                  if (remaining.length === 0) {
+                    updatePane(pane.id, { mode: "local" });
+                  }
+                }
+              }}
+              onEditorChange={(path, content) => {
+                setEditorFiles((prev) =>
+                  prev.map((f) =>
+                    f.path === path ? { ...f, content, dirty: true } : f,
+                  ),
+                );
+              }}
+              onEditorBackToTerminal={() => {
+                updatePane(pane.id, { mode: "local" });
+              }}
             />
           ))}
         </div>

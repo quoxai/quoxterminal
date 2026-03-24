@@ -17,6 +17,9 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import TerminalEmbed from "./TerminalEmbed";
 import SshTerminalEmbed from "./SshTerminalEmbed";
+import FileEditor from "../files/FileEditor";
+import FileEditorTabs from "../files/FileEditorTabs";
+import "../files/FileEditor.css";
 import ClaudeStatusBar from "../claude/ClaudeStatusBar";
 import HostKnowledgeCard from "./HostKnowledgeCard";
 import ErrorNotificationBar from "./ErrorNotificationBar";
@@ -70,6 +73,13 @@ interface TerminalPaneProps {
   claudeToggleRef?: React.MutableRefObject<(() => void) | null>;
   fontSize?: number;
   visible?: boolean;
+  // Editor mode props
+  editorFiles?: Array<{ path: string; name: string; content: string; dirty: boolean }>;
+  activeEditorFile?: string | null;
+  onEditorSelectFile?: (path: string) => void;
+  onEditorCloseFile?: (path: string) => void;
+  onEditorChange?: (path: string, content: string) => void;
+  onEditorBackToTerminal?: () => void;
 }
 
 /** Write data to a session — local PTY or SSH. */
@@ -110,6 +120,12 @@ export default function TerminalPane({
   claudeToggleRef,
   fontSize,
   visible = true,
+  editorFiles,
+  activeEditorFile,
+  onEditorSelectFile,
+  onEditorCloseFile,
+  onEditorChange,
+  onEditorBackToTerminal,
 }: TerminalPaneProps) {
   const scrollRef = useRef<{
     scrollLines: (n: number) => void;
@@ -663,8 +679,50 @@ export default function TerminalPane({
           />
         )}
 
-        {/* Single terminal — always the same component, Claude is just a command inside it */}
-        {paneMode === "ssh" && sessionId ? (
+        {/* Editor mode — CodeMirror viewer/editor */}
+        {paneMode === "editor" && editorFiles && editorFiles.length > 0 ? (
+          <div className="fe-editor-pane">
+            <FileEditorTabs
+              files={editorFiles}
+              activeFilePath={activeEditorFile ?? null}
+              onSelectFile={(path) => onEditorSelectFile?.(path)}
+              onCloseFile={(path) => onEditorCloseFile?.(path)}
+            />
+            {activeEditorFile && editorFiles.find((f) => f.path === activeEditorFile) ? (
+              <FileEditor
+                value={editorFiles.find((f) => f.path === activeEditorFile)!.content}
+                filePath={activeEditorFile}
+                fontSize={fontSize}
+                readOnly={true}
+                onChange={(content) => onEditorChange?.(activeEditorFile, content)}
+              />
+            ) : (
+              <div className="fe-editor-empty">
+                <div className="fe-editor-empty__icon">📄</div>
+                <div className="fe-editor-empty__text">No file selected</div>
+                <div className="fe-editor-empty__hint">Choose a file from the tab bar above</div>
+              </div>
+            )}
+            <div className="fe-editor-footer">
+              <span>
+                {editorFiles.find((f) => f.path === activeEditorFile)
+                  ? `${editorFiles.find((f) => f.path === activeEditorFile)!.content.split("\n").length} lines`
+                  : ""}
+              </span>
+              <button
+                onClick={() => onEditorBackToTerminal?.()}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  color: "rgba(56, 189, 248, 0.7)",
+                  fontSize: "10px",
+                }}
+              >
+                ← Back to terminal
+              </button>
+            </div>
+          </div>
+        ) : paneMode === "ssh" && sessionId ? (
           <SshTerminalEmbed
             key={`ssh-${paneId}`}
             sessionId={sessionId}
