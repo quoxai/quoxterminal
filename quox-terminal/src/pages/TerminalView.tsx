@@ -30,7 +30,7 @@ import SessionRestoreBanner from "../components/terminal/SessionRestoreBanner";
 import FileExplorer from "../components/files/FileExplorer";
 import type { FleetAgent } from "../services/fleetService";
 import type { FleetHost } from "../services/bastionClient";
-import { ptyKill } from "../lib/tauri-pty";
+import { ptyKill, ptyList } from "../lib/tauri-pty";
 import { sshDisconnect } from "../lib/tauri-ssh";
 import { storeGet, storeSet } from "../lib/store";
 import { migrateFromLocalStorage } from "../services/localMemoryStore";
@@ -163,6 +163,7 @@ export default function TerminalView() {
   const [fleetOpen, setFleetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [fileExplorerOpen, setFileExplorerOpen] = useState(false);
+  const [explorerRootPath, setExplorerRootPath] = useState("/");
   const [vimEnabled, setVimEnabled] = useState(false);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -206,6 +207,16 @@ export default function TerminalView() {
 
       const ws = workspaces.find((w) => w.id === wsId);
       const activeSessions = ws?.panes.filter((p) => p.sessionId) || [];
+
+      // Confirm before closing a tab with active sessions
+      if (activeSessions.length > 0) {
+        const count = activeSessions.length;
+        const msg =
+          count === 1
+            ? "This tab has an active session. Close it?"
+            : `This tab has ${count} active sessions. Close them all?`;
+        if (!confirm(msg)) return;
+      }
 
       // Kill all sessions in the workspace (local PTY + SSH)
       activeSessions.forEach((p) => {
@@ -508,6 +519,23 @@ export default function TerminalView() {
   useEffect(() => {
     migrateFromLocalStorage().catch(() => {});
   }, []);
+
+  // ── Fetch CWD for file explorer from active pane's PTY session ──────
+  useEffect(() => {
+    if (!fileExplorerOpen) return;
+    const focusedPane = panes.find((p) => p.id === focusedPaneId);
+    if (!focusedPane?.sessionId) return;
+
+    const sid = focusedPane.sessionId;
+    ptyList()
+      .then((sessions) => {
+        const match = sessions.find((s) => s.id === sid);
+        if (match?.cwd) {
+          setExplorerRootPath(match.cwd);
+        }
+      })
+      .catch(() => {});
+  }, [fileExplorerOpen, focusedPaneId, panes]);
 
   // ── Flash active tab when Claude is waiting for input ───────────────
   useEffect(() => {
@@ -966,7 +994,7 @@ export default function TerminalView() {
         {/* File Explorer sidebar (left) */}
         {fileExplorerOpen && (
           <FileExplorer
-            rootPath="/"
+            rootPath={explorerRootPath}
             onFileOpen={(path) => {
               // For now, log the file open — Phase 3 will add editor pane mode
               console.log("[FileExplorer] Open file:", path);
