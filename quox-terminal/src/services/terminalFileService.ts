@@ -258,11 +258,7 @@ export function computeDiff(original: string, modified: string): DiffResult {
   const m = oldLines.length;
   const n = newLines.length;
 
-  // Optimize: use 1D rolling array for LCS lengths
-  const prev = new Array<number>(n + 1).fill(0);
-  const curr = new Array<number>(n + 1).fill(0);
-
-  // We need the full table for backtracking, so build it
+  // Build full DP table for LCS (needed for backtracking)
   const dp: number[][] = [];
   for (let i = 0; i <= m; i++) {
     dp[i] = new Array<number>(n + 1).fill(0);
@@ -279,7 +275,6 @@ export function computeDiff(original: string, modified: string): DiffResult {
   }
 
   // Backtrack to produce diff
-  const lines: DiffLine[] = [];
   let i = m;
   let j = n;
 
