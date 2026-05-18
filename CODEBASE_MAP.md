@@ -1,7 +1,7 @@
 # QuoxTerminal — Codebase Map
 
-<!-- Last verified: 2026-05-14T18:30:00Z by codebase-mirror skill -->
-> **Generated:** 2026-05-14 (full rescan, verified)
+<!-- Last verified: 2026-05-18T14:00:00Z by codebase-mirror skill -->
+> **Generated:** 2026-05-18 (full rescan, verified)
 > **Version:** 0.4.1
 > **Stack:** Tauri 2 + React 19 + Rust + TypeScript
 > **License:** BUSL-1.1
@@ -15,7 +15,7 @@ QuoxTerminal is a native desktop terminal application with AI integration, SSH s
 | Metric | Count |
 |--------|-------|
 | React components (TSX) | 49 |
-| Component helpers (TS) | 2 |
+| Pages + App (TSX) | 3 |
 | React hooks | 8 |
 | Services | 15 |
 | Config files | 5 |
@@ -23,7 +23,8 @@ QuoxTerminal is a native desktop terminal application with AI integration, SSH s
 | Rust source files | 41 |
 | Tauri commands | 42 |
 | Test files | 40 |
-| Tool registry entries | 61 |
+| Tool registry entries | 59 |
+| Utility modules | 4 |
 
 ---
 
@@ -79,8 +80,8 @@ quoxterminal/
 │   │   │   └── SettingsView.tsx # Settings page
 │   │   ├── components/
 │   │   │   ├── claude/          # Claude CLI UI (15 components)
-│   │   │   ├── terminal/        # Terminal embeds, panes (17 components)
-│   │   │   ├── files/           # File explorer + CodeMirror editor (5 + 2 helpers)
+│   │   │   ├── terminal/        # Terminal embeds, panes (16 components)
+│   │   │   ├── files/           # File explorer + CodeMirror editor (5 TSX + 2 TS)
 │   │   │   ├── hosts/           # Fleet dashboard, host picker (2 components)
 │   │   │   ├── teams/           # Agent teams launcher + board (3 components)
 │   │   │   ├── tools/           # Tool palette (2 components)
@@ -93,144 +94,119 @@ quoxterminal/
 │   │   ├── lib/                 # 6 Tauri IPC bridge modules
 │   │   ├── utils/               # 4 utility modules
 │   │   ├── types/               # Shared TypeScript types
-│   │   └── __tests__/           # 39 test files
+│   │   └── __tests__/           # 40 test files
 │   ├── src-tauri/
 │   │   ├── src/
 │   │   │   ├── main.rs          # Tauri entry (calls lib::run)
-│   │   │   ├── lib.rs           # Plugin setup, command registration
-│   │   │   ├── commands.rs      # Main Tauri IPC commands (35)
-│   │   │   ├── state.rs         # AppState (PTY/SSH/Claude managers)
-│   │   │   ├── pty/             # PTY session manager (4 files)
-│   │   │   ├── ssh/             # SSH session + key manager (5 files)
-│   │   │   ├── claude/          # Claude CLI wrapper + parser (4 files)
-│   │   │   ├── ai/              # Anthropic API client (4 files)
-│   │   │   ├── fs/              # Filesystem operations (3 files)
-│   │   │   ├── safety/          # Command validator (3 files)
-│   │   │   ├── memory/          # Local memory bridge (2 files)
-│   │   │   ├── collector/       # WebSocket client (3 files)
-│   │   │   ├── settings/        # Font/shell detection (3 files)
-│   │   │   ├── shell_integration/ # Shell init scripts (3 files)
-│   │   │   ├── tray.rs          # System tray
-│   │   │   ├── hotkey.rs        # Global shortcut
-│   │   │   └── updater.rs       # Auto-update check
+│   │   │   ├── lib.rs           # App builder, plugin registration, command handlers
+│   │   │   ├── commands.rs      # All 42 Tauri command implementations
+│   │   │   ├── state.rs         # AppState (PTY, SSH, Claude, Collector managers)
+│   │   │   ├── pty/             # Local PTY session management
+│   │   │   ├── ssh/             # SSH client (russh, key manager, known_hosts)
+│   │   │   ├── claude/          # Claude CLI streaming sessions
+│   │   │   ├── ai/              # Anthropic Messages API client
+│   │   │   ├── fs/              # Native filesystem operations
+│   │   │   ├── safety/          # Command safety validator + denylist
+│   │   │   ├── memory/          # Local entity/session storage
+│   │   │   ├── collector/       # WebSocket client to Collector
+│   │   │   ├── settings/        # Font + shell enumeration
+│   │   │   ├── shell_integration/ # CWD tracking, prompt detection
+│   │   │   ├── tray.rs          # System tray setup
+│   │   │   ├── hotkey.rs        # Global hotkey registration
+│   │   │   └── updater.rs       # Auto-update checker
 │   │   ├── Cargo.toml           # Rust dependencies
-│   │   └── tauri.conf.json      # Tauri app config
-│   ├── package.json             # Frontend dependencies
-│   └── vite.config.ts           # Vite bundler config
-├── docs/                        # Documentation
+│   │   └── tauri.conf.json      # Tauri configuration
+│   ├── package.json             # Node dependencies (React 19, xterm.js, CodeMirror 6)
+│   ├── vite.config.ts           # Vite bundler config
+│   └── vitest.config.ts         # Test runner config
+├── .github/workflows/ci.yml     # CI pipeline
 ├── README.md                    # Project overview
 └── CODEBASE_MAP.md              # This file
 ```
 
 ---
 
-## Entry Points
+## Key Entry Points
 
-### Frontend (React)
+### Frontend
+
 | File | Purpose |
 |------|---------|
-| `src/main.tsx` | React DOM render entry |
-| `src/App.tsx:3` | Root component, renders `<TerminalView />` |
-| `src/pages/TerminalView.tsx` | Main page — workspaces, panes, sidebars |
-| `src/pages/SettingsView.tsx` | Settings page |
+| `src/main.tsx` | React root render |
+| `src/App.tsx` | Root component, renders TerminalView |
+| `src/pages/TerminalView.tsx` | Main workspace: tabs, panes, sidebars, shortcuts |
+| `src/pages/SettingsView.tsx` | Settings page (standalone route) |
 
 ### Backend (Rust)
+
 | File | Purpose |
 |------|---------|
-| `src-tauri/src/main.rs` | Tauri entry (calls `lib::run()`) |
-| `src-tauri/src/lib.rs:34` | Plugin registration, setup, command handlers |
-| `src-tauri/src/commands.rs` | Main Tauri IPC commands (35) |
-| `src-tauri/src/memory/commands.rs` | Memory bridge commands (7) |
-| `src-tauri/src/state.rs` | `AppState` — PTY, SSH, Claude, Collector managers |
+| `src-tauri/src/main.rs` | Tauri entry, calls `lib::run()` |
+| `src-tauri/src/lib.rs` | App builder, plugins, command handler registration |
+| `src-tauri/src/commands.rs` | All Tauri command implementations |
+| `src-tauri/src/state.rs` | AppState struct (PTY, SSH, Claude, Collector managers) |
 
 ---
 
-## Rust Modules
+## Tauri Commands (42 total)
 
-### Core Modules
-| Module | Path | Files | Purpose |
-|--------|------|-------|---------|
-| `pty` | `src/pty/` | `mod.rs`, `manager.rs`, `session.rs`, `shell.rs` | Local PTY sessions via `portable-pty` |
-| `ssh` | `src/ssh/` | `mod.rs`, `client.rs`, `session.rs`, `key_manager.rs`, `known_hosts.rs` | SSH connections via `russh` (bastion support) |
-| `claude` | `src/claude/` | `mod.rs`, `session.rs`, `parser.rs`, `detect.rs` | Claude CLI session, parser, project detection |
-| `ai` | `src/ai/` | `mod.rs`, `client.rs`, `streaming.rs`, `context.rs` | Anthropic Messages API client |
-| `fs` | `src/fs/` | `mod.rs`, `operations.rs`, `validation.rs` | Native filesystem operations |
-| `safety` | `src/safety/` | `mod.rs`, `validator.rs`, `denylist.rs` | Command validator (deny dangerous ops) |
-| `memory` | `src/memory/` | `mod.rs`, `commands.rs` | Local entity/session storage |
-| `collector` | `src/collector/` | `mod.rs`, `ws_client.rs`, `auth.rs` | WebSocket client to Quox Collector |
-| `settings` | `src/settings/` | `mod.rs`, `shells.rs`, `fonts.rs` | Shell + font detection |
-| `shell_integration` | `src/shell_integration/` | `mod.rs`, `cwd_tracking.rs`, `prompt_detection.rs` | Shell init scripts |
-
-### Desktop Features
-| Module | File | Purpose |
-|--------|------|---------|
-| `tray` | `src/tray.rs` | System tray icon + menu |
-| `hotkey` | `src/hotkey.rs` | Global shortcut registration (Cmd/Ctrl+`) |
-| `updater` | `src/updater.rs` | Auto-update via GitHub releases |
-
----
-
-## Tauri Commands (42)
-
-### PTY Commands (8)
-- `pty_spawn` — Create local PTY session
-- `pty_write` — Write to PTY stdin
-- `pty_resize` — Resize PTY dimensions
-- `pty_kill` — Terminate PTY session
-- `pty_list` — List active sessions
-- `pty_session_exists` — Check if session exists
-- `get_default_shell` — Detect system shell
-- `get_terminal_output` — Read from ring buffer
+### PTY Commands (7)
+- `pty_spawn` — spawn local PTY session
+- `pty_write` — write to PTY stdin
+- `pty_resize` — resize PTY dimensions
+- `pty_kill` — kill PTY session
+- `pty_list` — list active sessions
+- `pty_session_exists` — check if session exists
+- `get_terminal_output` — read from ring buffer
 
 ### SSH Commands (7)
-- `ssh_connect` — Connect to remote host (bastion support)
-- `ssh_write` — Write to remote shell
-- `ssh_resize` — Resize remote PTY
-- `ssh_disconnect` — Close SSH connection
-- `ssh_list_keys` — List ~/.ssh keys
-- `ssh_session_exists` — Check session exists
-- `ssh_get_output` — Read from ring buffer
+- `ssh_connect` — connect to remote host (key/password auth, bastion support)
+- `ssh_disconnect` — disconnect SSH session
+- `ssh_write` — write to remote shell
+- `ssh_resize` — resize remote PTY
+- `ssh_list_keys` — list ~/.ssh keys
+- `ssh_session_exists` — check if SSH session exists
+- `ssh_get_output` — read from SSH ring buffer
 
-### Claude Commands (4)
-- `claude_spawn` — Start Claude CLI session (`--output-format stream-json`)
-- `claude_write` — Write to Claude stdin
-- `claude_kill` — Terminate Claude session
-- `detect_claude_project` — Detect CLAUDE.md project
+### Claude Mode Commands (4)
+- `claude_spawn` — spawn Claude CLI session with `--output-format stream-json`
+- `claude_write` — write to Claude stdin (user messages, approvals)
+- `claude_kill` — kill Claude session
+- `detect_claude_project` — detect Claude Code project info
 
-### AI Chat Commands (3)
-- `chat_send` — Send message to Anthropic API
-- `chat_send_stream` — Streaming chat response (SSE)
-- `chat_auth_status` — Get auth status
+### AI/Chat Commands (3)
+- `chat_send` — one-shot chat to Anthropic API
+- `chat_send_stream` — streaming chat (SSE events)
+- `chat_auth_status` — get auth method and readiness
 
 ### Filesystem Commands (5)
-- `fs_read_file` — Read file contents
-- `fs_write_file` — Write file (with backup)
-- `fs_delete_file` — Delete file (with backup)
-- `fs_rename_file` — Rename/move file
-- `fs_list_dir` — List directory entries
+- `fs_read_file` — read file contents
+- `fs_write_file` — write file (optional backup)
+- `fs_delete_file` — delete file (optional backup)
+- `fs_rename_file` — rename/move file
+- `fs_list_dir` — list directory entries
 
-### Collector Commands (3)
-- `collector_connect` — Connect to WebSocket
-- `collector_disconnect` — Disconnect
-- `collector_status` — Get connection status
+### Collector/Fleet Commands (5)
+- `collector_connect` — connect to Collector WebSocket
+- `collector_disconnect` — disconnect from Collector
+- `collector_status` — get connection status
+- `bastion_list_hosts` — fetch host list from Collector API
+- `bastion_fleet_summary` — fetch fleet summary from Collector API
 
-### Bastion/Fleet Commands (2)
-- `bastion_list_hosts` — Fetch host list
-- `bastion_fleet_summary` — Fetch fleet summary
+### Memory Bridge Commands (7)
+- `collector_store_entity` — store entity in local memory
+- `collector_touch_entity` — update entity timestamp
+- `collector_extract_entities` — extract entities from text
+- `collector_add_open_loop` — add open loop item
+- `collector_add_learned_item` — add learned item
+- `collector_record_decision` — record decision
+- `collector_set_focus` — set current focus
 
-### Memory Commands (7)
-- `collector_store_entity` — Store entity
-- `collector_touch_entity` — Update entity timestamp
-- `collector_extract_entities` — Extract from text
-- `collector_add_open_loop` — Add open loop
-- `collector_add_learned_item` — Add learned item
-- `collector_record_decision` — Record decision
-- `collector_set_focus` — Set focus entity
-
-### System Commands (3)
-- `list_fonts` — List monospace fonts
-- `list_shells` — List available shells
-- `validate_command` — Check command safety
+### System Commands (4)
+- `get_default_shell` — detect system default shell
+- `list_fonts` — list monospace fonts
+- `list_shells` — list available shells
+- `validate_command` — check command against safety denylist
 
 ---
 
@@ -238,14 +214,14 @@ quoxterminal/
 
 | Hook | File | Purpose |
 |------|------|---------|
-| `useTerminalWorkspace` | `hooks/useTerminalWorkspace.ts` | Multi-workspace state, pane management, layouts |
-| `useSettings` | `hooks/useSettings.ts` | Tauri store persistence for user preferences |
-| `useClaudeSession` | `hooks/useClaudeSession.ts` | Claude CLI session lifecycle |
-| `useTeamSession` | `hooks/useTeamSession.ts` | Agent Teams orchestration |
-| `useVimMode` | `hooks/useVimMode.ts` | Vim keybinding scroll state |
-| `useCommandSafety` | `hooks/useCommandSafety.ts` | Command validation + warnings |
-| `useFleetStatus` | `hooks/useFleetStatus.ts` | Fleet/host status polling |
-| `useTerminalErrorDetection` | `hooks/useTerminalErrorDetection.ts` | Detect errors in terminal output |
+| `useTerminalWorkspace` | `hooks/useTerminalWorkspace.ts` | Multi-workspace state (tabs, panes, layouts) |
+| `useClaudeSession` | `hooks/useClaudeSession.ts` | Claude CLI session management |
+| `useTeamSession` | `hooks/useTeamSession.ts` | Agent team session state |
+| `useSettings` | `hooks/useSettings.ts` | App settings (font, theme, shell) |
+| `useVimMode` | `hooks/useVimMode.ts` | Vim keybinding overlay |
+| `useCommandSafety` | `hooks/useCommandSafety.ts` | Command safety validation |
+| `useFleetStatus` | `hooks/useFleetStatus.ts` | Fleet agent status polling |
+| `useTerminalErrorDetection` | `hooks/useTerminalErrorDetection.ts` | Error pattern detection |
 
 ---
 
@@ -253,160 +229,176 @@ quoxterminal/
 
 | Service | File | Purpose |
 |---------|------|---------|
-| `toolRegistry` | `services/toolRegistry.ts` | CLI tool definitions (59 entries, 10 categories) |
-| `claudeOutputParser` | `services/claudeOutputParser.ts` | Parse Claude CLI stream-json events |
+| `terminalFileService` | `services/terminalFileService.ts` | File CRUD operations |
+| `terminalContextBuilder` | `services/terminalContextBuilder.ts` | Build AI context from terminal state |
+| `terminalExecService` | `services/terminalExecService.ts` | Execute commands in terminals |
+| `terminalMemoryBridge` | `services/terminalMemoryBridge.ts` | Bridge to local memory store |
+| `localMemoryStore` | `services/localMemoryStore.ts` | IndexedDB local storage |
+| `bastionClient` | `services/bastionClient.ts` | Fleet/Bastion API client |
+| `fleetService` | `services/fleetService.ts` | Fleet agent management |
+| `agentDefinitionService` | `services/agentDefinitionService.ts` | Agent type definitions |
+| `claudeOutputParser` | `services/claudeOutputParser.ts` | Parse Claude CLI stream-json |
 | `claudeSessionTracker` | `services/claudeSessionTracker.ts` | Track Claude session state |
-| `claudeTrustProfile` | `services/claudeTrustProfile.ts` | Tool trust/approval profiles |
-| `terminalExecService` | `services/terminalExecService.ts` | Execute commands in terminal |
-| `terminalFileService` | `services/terminalFileService.ts` | File operations via PTY |
-| `terminalContextBuilder` | `services/terminalContextBuilder.ts` | Build context for AI |
-| `terminalMemoryBridge` | `services/terminalMemoryBridge.ts` | Entity extraction, memory storage |
-| `localMemoryStore` | `services/localMemoryStore.ts` | Local IndexedDB-like storage |
-| `bastionClient` | `services/bastionClient.ts` | Fleet API proxy calls |
-| `fleetService` | `services/fleetService.ts` | Fleet status/agent operations |
-| `teamHistoryService` | `services/teamHistoryService.ts` | Team session history |
-| `teamOutputMonitor` | `services/teamOutputMonitor.ts` | Monitor team agent outputs |
-| `teamStorageService` | `services/teamStorageService.ts` | Team config persistence |
-| `agentDefinitionService` | `services/agentDefinitionService.ts` | Agent role definitions |
+| `claudeTrustProfile` | `services/claudeTrustProfile.ts` | Trust level management |
+| `toolRegistry` | `services/toolRegistry.ts` | 59 Quox CLI tool definitions |
+| `teamStorageService` | `services/teamStorageService.ts` | Team session persistence |
+| `teamHistoryService` | `services/teamHistoryService.ts` | Team history tracking |
+| `teamOutputMonitor` | `services/teamOutputMonitor.ts` | Monitor team agent output |
 
 ---
 
-## Config Files (5)
+## Configuration (5 files)
 
-| Config | File | Purpose |
-|--------|------|---------|
-| `terminalConfig` | `config/terminalConfig.ts` | Keyboard shortcuts, limits (panes, workspaces, font sizes), vim bindings |
-| `terminalModes` | `config/terminalModes.ts` | Claude CLI modes (strict/balanced/builder/audit), system prompts |
-| `teamConfig` | `config/teamConfig.ts` | Agent Teams templates, env generation, cost estimation |
-| `claudeConfig` | `config/claudeConfig.ts` | Claude model definitions |
-| `themes` | `config/themes.ts` | Terminal color themes |
+| File | Purpose |
+|------|---------|
+| `config/terminalConfig.ts` | Keyboard shortcuts, limits (MAX_PANES=4, MAX_WORKSPACES=8) |
+| `config/terminalModes.ts` | Terminal mode definitions (local, ssh, claude) |
+| `config/teamConfig.ts` | Agent team templates (Feature Build, Code Review, Bug Hunt, Refactor Sprint) |
+| `config/claudeConfig.ts` | Tool card styles, model pricing, context window |
+| `config/themes.ts` | Terminal color themes (7 themes: quox-dark, monokai, solarized-dark, dracula, nord, one-dark, catppuccin) |
 
 ---
 
 ## Tauri IPC Bridges (6)
 
-| Bridge | File | Commands |
-|--------|------|----------|
-| `tauri-pty` | `lib/tauri-pty.ts` | `pty_spawn`, `pty_write`, `pty_resize`, `pty_kill`, `pty_list`, `pty_session_exists`, `get_terminal_output` |
-| `tauri-ssh` | `lib/tauri-ssh.ts` | `ssh_connect`, `ssh_write`, `ssh_resize`, `ssh_disconnect`, `ssh_list_keys`, `ssh_session_exists`, `ssh_get_output` |
-| `tauri-claude` | `lib/tauri-claude.ts` | `claude_spawn`, `claude_write`, `claude_kill`, `detect_claude_project` |
-| `tauri-fs` | `lib/tauri-fs.ts` | `fs_read_file`, `fs_write_file`, `fs_delete_file`, `fs_rename_file`, `fs_list_dir` |
-| `tauri-collector` | `lib/tauri-collector.ts` | `collector_connect`, `collector_disconnect`, `collector_status` |
-| `store` | `lib/store.ts` | Tauri plugin-store wrapper |
+| File | Purpose |
+|------|---------|
+| `lib/tauri-pty.ts` | PTY session management (`pty_spawn`, `pty_write`, etc.) |
+| `lib/tauri-ssh.ts` | SSH session management (`ssh_connect`, `ssh_write`, etc.) |
+| `lib/tauri-claude.ts` | Claude CLI session management (`claude_spawn`, `claude_write`, etc.) |
+| `lib/tauri-fs.ts` | Filesystem operations (`fs_read_file`, `fs_write_file`, etc.) |
+| `lib/tauri-collector.ts` | Collector WebSocket and API (`collector_connect`, `bastion_list_hosts`, etc.) |
+| `lib/store.ts` | Tauri Store wrapper for persistent settings |
 
 ---
 
-## Components by Category
+## Rust Modules
 
-### Claude Components (15)
-| Component | File | Purpose |
-|-----------|------|---------|
-| `ClaudePaneEmbed` | `components/claude/ClaudePaneEmbed.tsx` | Main Claude CLI streaming view |
-| `ClaudeConversation` | `components/claude/ClaudeConversation.tsx` | Message history display |
-| `ClaudeInputBar` | `components/claude/ClaudeInputBar.tsx` | User input + send button |
-| `ClaudeStatusBar` | `components/claude/ClaudeStatusBar.tsx` | Session status indicator |
-| `ClaudeContextPanel` | `components/claude/ClaudeContextPanel.tsx` | Files tracked, context info |
-| `ClaudeMdViewer` | `components/claude/ClaudeMdViewer.tsx` | CLAUDE.md file viewer |
-| `ClaudeProjectBadge` | `components/claude/ClaudeProjectBadge.tsx` | Project detection badge |
-| `ToolCallCard` | `components/claude/ToolCallCard.tsx` | Tool invocation display |
-| `BashOutputCard` | `components/claude/BashOutputCard.tsx` | Bash command output |
-| `EditDiffCard` | `components/claude/EditDiffCard.tsx` | File edit diff view |
-| `ReadFileCard` | `components/claude/ReadFileCard.tsx` | File read display |
-| `ApprovalBatch` | `components/claude/ApprovalBatch.tsx` | Multi-tool approval UI |
-| `CostTracker` | `components/claude/CostTracker.tsx` | Token usage + cost |
-| `TokenBudgetGauge` | `components/claude/TokenBudgetGauge.tsx` | Context window gauge |
-| `FilesTracked` | `components/claude/FilesTracked.tsx` | Tracked files list |
+### Core Modules
 
-### Terminal Components (17)
-| Component | File | Purpose |
-|-----------|------|---------|
-| `TerminalPane` | `components/terminal/TerminalPane.tsx` | Per-pane wrapper with header |
-| `TerminalEmbed` | `components/terminal/TerminalEmbed.tsx` | xterm.js local PTY embed |
-| `SshTerminalEmbed` | `components/terminal/SshTerminalEmbed.tsx` | xterm.js SSH embed |
-| `TerminalChat` | `components/terminal/TerminalChat.tsx` | AI Chat sidebar |
-| `SshConnectDialog` | `components/terminal/SshConnectDialog.tsx` | SSH connection form |
-| `HostKnowledgeCard` | `components/terminal/HostKnowledgeCard.tsx` | Host info display |
-| `ErrorNotificationBar` | `components/terminal/ErrorNotificationBar.tsx` | Error detection banner |
-| `SessionRestoreBanner` | `components/terminal/SessionRestoreBanner.tsx` | Session restore prompt |
-| `DiffView` | `components/terminal/DiffView.tsx` | Side-by-side diff |
-| `FileChangeCard` | `components/terminal/FileChangeCard.tsx` | File change summary |
-| `FileChangeGroup` | `components/terminal/FileChangeGroup.tsx` | Grouped file changes |
-| `FileApplyConfirmModal` | `components/terminal/FileApplyConfirmModal.tsx` | File apply confirmation |
-| `RunnableCodeBlock` | `components/terminal/RunnableCodeBlock.tsx` | Executable code block |
-| `MemoryActivityFeed` | `components/terminal/MemoryActivityFeed.tsx` | Memory event feed |
-| `SuggestionChips` | `components/terminal/SuggestionChips.tsx` | Command suggestions |
-| `TerminalExecConfirmModal` | `components/terminal/TerminalExecConfirmModal.tsx` | Execution confirmation |
+| Module | Files | Purpose |
+|--------|-------|---------|
+| `pty/` | `mod.rs`, `manager.rs`, `session.rs`, `shell.rs` | Local PTY sessions via portable-pty |
+| `ssh/` | `mod.rs`, `client.rs`, `session.rs`, `key_manager.rs`, `known_hosts.rs` | SSH via russh, bastion support |
+| `claude/` | `mod.rs`, `session.rs`, `parser.rs`, `detect.rs` | Claude CLI integration |
+| `ai/` | `mod.rs`, `client.rs`, `context.rs`, `streaming.rs` | Anthropic Messages API |
+| `fs/` | `mod.rs`, `operations.rs`, `validation.rs` | File operations with path validation |
+| `safety/` | `mod.rs`, `validator.rs`, `denylist.rs` | Command safety checking |
+| `memory/` | `mod.rs`, `commands.rs` | Local entity storage bridge |
+| `collector/` | `mod.rs`, `ws_client.rs`, `auth.rs` | Collector WebSocket client |
+| `settings/` | `mod.rs`, `fonts.rs`, `shells.rs` | System font/shell enumeration |
+| `shell_integration/` | `mod.rs`, `cwd_tracking.rs`, `prompt_detection.rs` | Shell integration helpers |
 
-### Files Components (5 + 2 helpers)
-| Component | File | Purpose |
-|-----------|------|---------|
-| `FileExplorer` | `components/files/FileExplorer.tsx` | File tree sidebar |
-| `FileTree` | `components/files/FileTree.tsx` | Directory tree |
-| `FileTreeItem` | `components/files/FileTreeItem.tsx` | Single tree item |
-| `FileEditor` | `components/files/FileEditor.tsx` | CodeMirror 6 editor |
-| `FileEditorTabs` | `components/files/FileEditorTabs.tsx` | Editor tab bar |
-| `quoxEditorTheme` | `components/files/quoxEditorTheme.ts` | Quox theme for CodeMirror (helper) |
-| `fileIcons` | `components/files/fileIcons.ts` | File type icon mapping (helper) |
+### Desktop Features
 
-### Teams Components (3)
-| Component | File | Purpose |
-|-----------|------|---------|
-| `TeamLauncherModal` | `components/teams/TeamLauncherModal.tsx` | Team selection + config |
-| `TeamControlBar` | `components/teams/TeamControlBar.tsx` | Active team controls |
-| `TaskBoard` | `components/teams/TaskBoard.tsx` | Team task board |
-
-### Other Components
-| Category | Components |
-|----------|------------|
-| `hosts/` | `HostPicker`, `FleetDashboard` |
-| `tools/` | `ToolPalette`, `ToolParamModal` |
-| `settings/` | `QuoxSettings`, `SettingsTerminal`, `GeneralSettings`, `AppearanceSettings` |
-| `safety/` | `CommandWarning` |
-| `ui/` | `Modal` |
+| File | Purpose |
+|------|---------|
+| `tray.rs` | System tray menu setup |
+| `hotkey.rs` | Global hotkey (Cmd/Ctrl+\`) registration |
+| `updater.rs` | Auto-update checker |
 
 ---
 
-## Utils (4)
+## Component Directory
 
-| Util | File | Purpose |
-|------|------|---------|
-| `entityExtractor` | `utils/entityExtractor.ts` | Extract entities from terminal output |
-| `fileBlockParser` | `utils/fileBlockParser.ts` | Parse file blocks from Claude output |
-| `terminalErrorDetector` | `utils/terminalErrorDetector.ts` | Detect error patterns in output |
-| `notificationBeep` | `utils/notificationBeep.ts` | Audio notification for attention |
+### `components/claude/` (15 components)
+Claude CLI UI for streaming output and tool calls.
 
----
+| Component | Purpose |
+|-----------|---------|
+| `ClaudeConversation` | Main conversation view |
+| `ClaudeInputBar` | User input bar |
+| `ClaudeStatusBar` | Session status display |
+| `ClaudeContextPanel` | Context/file panel |
+| `ClaudePaneEmbed` | Claude mode pane wrapper |
+| `ClaudeMdViewer` | Markdown viewer |
+| `ClaudeProjectBadge` | Project detection badge |
+| `ToolCallCard` | Generic tool call card |
+| `BashOutputCard` | Bash output display |
+| `ReadFileCard` | File read display |
+| `EditDiffCard` | Edit diff viewer |
+| `TokenBudgetGauge` | Token usage gauge |
+| `CostTracker` | Cost tracking display |
+| `FilesTracked` | Tracked files list |
+| `ApprovalBatch` | Approval queue |
 
-## Tool Registry (61 entries)
+### `components/terminal/` (16 components)
+Terminal pane and related UI.
 
-Categories:
-- **TUI** (3): `quox tui`, `quox chat`, `quox login`
-- **Fleet** (7): `fleet status`, `fleet summary`, `fleet agents`, `fleet tools`, `fleet exec`, `fleet watch`, `service watch`
-- **AI** (4): `quick chat`, `chat status`, `conversations`, `search conversations`
-- **Workflows** (5): `list workflows`, `run workflow`, `workflow steps`, `list runs`, `run status`
-- **Memory** (7): `memory stats`, `memory list`, `memory search`, `memory export`, `memory create`, `entity list`, `entity search`
-- **Monitoring** (8): `service health`, `backup list/create/verify/schedule`, `platform stats`, `inbox`, `inbox stats`
-- **Admin** (14): `whoami`, `config`, `logout`, `API keys`, `audit log`, `file stats`, `service list`, `MFA setup`, `retention stats`, `integrations`, `test integration`, `tag list`, `notification channels`
-- **Organization** (4): `org list`, `org switch`, `org members`, `org audit`
-- **Agents** (6): `agent list`, `agent get`, `agent create`, `agent activate/deactivate`, `agent tools`
-- **Assistants** (2): `assistant list`, `assistant deploy`
+| Component | Purpose |
+|-----------|---------|
+| `TerminalPane` | Main pane container (local/ssh/claude/editor mode) |
+| `TerminalEmbed` | xterm.js embed for local PTY |
+| `TerminalChat` | AI chat sidebar |
+| `SshTerminalEmbed` | xterm.js embed for SSH |
+| `SshConnectDialog` | SSH connection dialog |
+| `DiffView` | File diff viewer |
+| `FileChangeCard` | File change card |
+| `FileChangeGroup` | Grouped file changes |
+| `FileApplyConfirmModal` | Apply changes confirmation |
+| `TerminalExecConfirmModal` | Exec confirmation modal |
+| `SuggestionChips` | AI suggestion chips |
+| `MemoryActivityFeed` | Memory activity display |
+| `HostKnowledgeCard` | Host knowledge card |
+| `ErrorNotificationBar` | Error notification bar |
+| `RunnableCodeBlock` | Runnable code block |
+| `SessionRestoreBanner` | Session restore banner |
 
----
+### `components/files/` (5 TSX + 2 TS)
+File explorer and CodeMirror editor.
 
-## Terminal Limits (Architecture Constants)
+| File | Purpose |
+|------|---------|
+| `FileExplorer.tsx` | File tree sidebar |
+| `FileTree.tsx` | Tree component |
+| `FileTreeItem.tsx` | Tree item |
+| `FileEditor.tsx` | CodeMirror 6 editor |
+| `FileEditorTabs.tsx` | Editor tab bar |
+| `quoxEditorTheme.ts` | CodeMirror Quox theme |
+| `fileIcons.ts` | File type icons |
 
-```typescript
-TERMINAL_LIMITS = {
-  MAX_PANES: 4,
-  MAX_WORKSPACES: 8,
-  MAX_SCROLLBACK: 5000,
-  WORKSPACE_WARN_THRESHOLD: 7,
-  MIN_FONT_SIZE: 8,
-  MAX_FONT_SIZE: 32,
-  DEFAULT_FONT_SIZE: 14,
-  FONT_SIZE_STEP: 1,
-}
-```
+### `components/hosts/` (2 components)
+
+| Component | Purpose |
+|-----------|---------|
+| `FleetDashboard` | Fleet agent dashboard sidebar |
+| `HostPicker` | Host selection picker |
+
+### `components/teams/` (3 components)
+
+| Component | Purpose |
+|-----------|---------|
+| `TeamLauncherModal` | Team template launcher |
+| `TeamControlBar` | Active team control bar |
+| `TaskBoard` | Task board sidebar |
+
+### `components/tools/` (2 components)
+
+| Component | Purpose |
+|-----------|---------|
+| `ToolPalette` | Quox CLI tool launcher |
+| `ToolParamModal` | Tool parameter input modal |
+
+### `components/settings/` (4 components)
+
+| Component | Purpose |
+|-----------|---------|
+| `QuoxSettings` | Settings modal wrapper |
+| `GeneralSettings` | General settings tab |
+| `AppearanceSettings` | Appearance settings tab |
+| `SettingsTerminal` | Terminal settings preview |
+
+### `components/safety/` (1 component)
+
+| Component | Purpose |
+|-----------|---------|
+| `CommandWarning` | Dangerous command warning overlay |
+
+### `components/ui/` (1 component)
+
+| Component | Purpose |
+|-----------|---------|
+| `Modal` | Generic modal component |
 
 ---
 
@@ -414,160 +406,184 @@ TERMINAL_LIMITS = {
 
 | Category | Shortcut | Action |
 |----------|----------|--------|
-| Pane Focus | Ctrl/Cmd+1-4 | Focus pane 1-4 |
-| Terminal | Ctrl/Cmd+\ | Toggle AI chat |
-| Terminal | Ctrl/Cmd+Shift+L | Clear terminal |
-| Terminal | Ctrl/Cmd+Shift+T | Toggle tool palette |
-| Terminal | Ctrl/Cmd+Shift+E | Toggle file explorer |
-| Workspaces | Ctrl/Cmd+Shift+N | New workspace |
-| Workspaces | Ctrl/Cmd+Shift+W | Close workspace |
-| Agent Teams | Ctrl/Cmd+Shift+A | Toggle teams modal |
-| Claude Mode | Ctrl/Cmd+Shift+K | Toggle Claude mode |
-| Zoom | Ctrl/Cmd+=/-/0 | Zoom in/out/reset |
-| Vim | Ctrl/Cmd+Shift+V | Toggle vim mode |
-| Help | Ctrl/Cmd+? | Show shortcuts |
+| Pane Focus | Cmd/Ctrl+1-4 | Focus pane 1-4 |
+| Terminal | Cmd/Ctrl+\\ | Toggle AI chat |
+| Terminal | Cmd/Ctrl+Shift+L | Clear terminal |
+| Terminal | Cmd/Ctrl+Shift+T | Toggle tool palette |
+| Terminal | Cmd/Ctrl+Shift+E | Toggle file explorer |
+| Workspaces | Cmd/Ctrl+Shift+N | New workspace |
+| Workspaces | Cmd/Ctrl+Shift+W | Close workspace |
+| Agent Teams | Cmd/Ctrl+Shift+A | Toggle teams modal |
+| Claude Mode | Cmd/Ctrl+Shift+K | Toggle Claude mode |
+| Zoom | Cmd/Ctrl+= | Zoom in |
+| Zoom | Cmd/Ctrl+- | Zoom out |
+| Zoom | Cmd/Ctrl+0 | Reset zoom |
+| Vim | Cmd/Ctrl+Shift+V | Toggle vim mode |
+| Help | Cmd/Ctrl+? | Show shortcuts |
 
 ---
 
-## Vim Keybindings
+## Architecture Limits
 
-| Key | Action |
-|-----|--------|
-| `i`, `a` | Enter insert mode |
-| `j` | Scroll down one line |
-| `k` | Scroll up one line |
-| `d` | Scroll half page down |
-| `u` | Scroll half page up |
-| `G` | Scroll to bottom |
-| `gg` | Scroll to top (double-tap within 1s) |
-
----
-
-## Terminal Modes
-
-From `config/terminalModes.ts`:
-
-| Mode | Behavior | CLI Args |
-|------|----------|----------|
-| `strict` | Confirmation-heavy, safe | `--allowedTools Read,Glob,Grep` |
-| `balanced` | Default, practical | (none) |
-| `builder` | Fast execution | `--dangerouslySkipPermissions` |
-| `audit` | Read-only, no writes | `--allowedTools Read,Glob,Grep` |
+| Limit | Value | Source |
+|-------|-------|--------|
+| MAX_PANES | 4 | `terminalConfig.ts` |
+| MAX_WORKSPACES | 8 | `terminalConfig.ts` |
+| MAX_SCROLLBACK | 5000 | `terminalConfig.ts` |
+| MIN_FONT_SIZE | 8 | `terminalConfig.ts` |
+| MAX_FONT_SIZE | 32 | `terminalConfig.ts` |
+| DEFAULT_FONT_SIZE | 14 | `terminalConfig.ts` |
+| FONT_SIZE_STEP | 1 | `terminalConfig.ts` |
+| CONTEXT_WINDOW_TOKENS | 200,000 | `claudeConfig.ts` |
+| AUTO_COLLAPSE_LINES | 20 | `claudeConfig.ts` |
+| MAX_RAW_BUFFER | 1000 | `claudeConfig.ts` |
 
 ---
 
-## Agent Teams Templates
-
-From `config/teamConfig.ts`:
+## Agent Team Templates
 
 | Template | Layout | Agents | Use Case |
 |----------|--------|--------|----------|
-| Feature Build | quad | Architect (opus), Builder A (sonnet), Builder B (sonnet), Tester (sonnet) | Full-stack development |
-| Code Review | main-side | Security Auditor (opus), Quality Reviewer (sonnet), Docs Writer (haiku) | Security/quality audit |
-| Bug Hunt | split-h | Researcher (opus), Fixer (sonnet) | Bug investigation |
-| Refactor Sprint | quad | Planner (opus), Refactorer A (sonnet), Refactorer B (sonnet), Reviewer (sonnet) | Planned refactoring |
-
-Cost estimation: Hourly rates — opus $3.60, sonnet $0.72, haiku $0.19
+| Feature Build | quad | Architect (Opus), Builder A (Sonnet), Builder B (Sonnet), Tester (Sonnet) | Full-stack feature development |
+| Code Review | main-side | Security Auditor (Opus), Quality Reviewer (Sonnet), Docs Writer (Haiku) | Security audit + quality review |
+| Bug Hunt | split-h | Researcher (Opus), Fixer (Sonnet) | Bug investigation and fix |
+| Refactor Sprint | quad | Planner (Opus), Refactorer A (Sonnet), Refactorer B (Sonnet), Reviewer (Sonnet) | Planned refactoring |
 
 ---
 
-## Tests
+## Terminal Themes
 
-| Category | Test Files |
-|----------|------------|
-| Services (10) | `claudeOutputParser`, `claudeTrustProfile`, `claudeSessionTracker`, `toolRegistry`, `terminalExecService`, `terminalContextBuilder`, `terminalMemoryBridge`, `localMemoryStore`, `agentDefinitionService`, `teamStorageService` |
-| Hooks (1) | `useClaudeSession` |
-| Utils (4) | `fileBlockParser`, `entityExtractor`, `terminalErrorDetector`, `notificationBeep` |
-| Config (6) | `terminalConfig`, `terminalModes`, `teamConfig`, `claudeCliArgs`, `tauriFs`, `setup` |
-| Components (19) | `ClaudeConversation`, `ClaudeProjectBadge`, `EditDiffCard`, `ToolCallCard`, `TokenBudgetGauge`, `ClaudeModeSelector`, `ClaudeNativeMode`, `TeamLauncherModal`, `TeamControlBar`, `TaskBoard`, `ToolPalette`, `HostKnowledgeCard`, `FleetDashboard.connect`, `SessionRestoreBanner`, `SuggestionChips`, `TerminalChat.wiring`, `FileTree`, `FileExplorer`, `FileEditor` |
-
-Run: `npm test` or `npm run test:watch`
+| Theme | Background | Foreground |
+|-------|------------|------------|
+| quox-dark (default) | #0a0e14 | #b3b1ad |
+| monokai | #272822 | #f8f8f2 |
+| solarized-dark | #002b36 | #839496 |
+| dracula | #282a36 | #f8f8f2 |
+| nord | #2e3440 | #d8dee9 |
+| one-dark | #282c34 | #abb2bf |
+| catppuccin | #1e1e2e | #cdd6f4 |
 
 ---
 
 ## Dependencies
 
-### Frontend (package.json)
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@tauri-apps/api` | ^2.0.0 | Tauri IPC |
-| `@xterm/xterm` | ^5.5.0 | Terminal emulation |
-| `codemirror` | ^6.0.2 | Code editor |
-| `@codemirror/merge` | ^6.12.1 | Diff view |
-| `react` | ^19.0.0 | UI framework |
-| `react-markdown` | ^10.1.0 | Markdown rendering |
+### Rust (Cargo.toml)
+- `tauri` 2.x — desktop app framework
+- `tauri-plugin-store` 2.x — persistent settings
+- `tauri-plugin-clipboard-manager` 2.x — clipboard access
+- `tauri-plugin-global-shortcut` 2.x — hotkey registration
+- `tauri-plugin-updater` 2.x — auto-update
+- `portable-pty` 0.8 — cross-platform PTY
+- `russh` 0.46 — SSH client
+- `russh-keys` 0.46 — SSH key handling
+- `tokio` 1.x — async runtime
+- `reqwest` 0.12 — HTTP client
+- `tokio-tungstenite` 0.24 — WebSocket client
+- `serde` + `serde_json` — serialization
+- `uuid` 1.x — session IDs
+- `regex` 1.x — pattern matching
+- `dirs` 6.x — system directories
+- `base64` 0.22 — encoding
+- `futures-util` 0.3 — async utilities
 
-### Backend (Cargo.toml)
-| Crate | Version | Purpose |
-|-------|---------|---------|
-| `tauri` | 2 | Desktop framework (tray-icon feature) |
-| `portable-pty` | 0.8 | PTY management |
-| `russh` | 0.46 | SSH client |
-| `russh-keys` | 0.46 | SSH key management |
-| `tokio` | 1 | Async runtime |
-| `reqwest` | 0.12 | HTTP client |
-| `tokio-tungstenite` | 0.24 | WebSocket client |
-| `serde` | 1 | Serialization |
+### Node (package.json)
+- `react` 19.x, `react-dom` 19.x — UI framework
+- `@tauri-apps/api` 2.x — Tauri IPC
+- `@tauri-apps/plugin-store` 2.x — settings persistence
+- `@tauri-apps/plugin-clipboard-manager` 2.x — clipboard access
+- `@xterm/xterm` 5.5 — terminal emulator
+- `@xterm/addon-fit`, `addon-search`, `addon-unicode11`, `addon-web-links` — xterm addons
+- `codemirror` 6.x — code editor
+- `@codemirror/language-data`, `@codemirror/merge` — CodeMirror extensions
+- `@lezer/highlight` — syntax highlighting
+- `@uiw/codemirror-themes` — CodeMirror themes
+- `react-markdown` 10.x, `remark-gfm` 4.x — markdown rendering
+- `vite` 6.x — bundler
+- `vitest` 3.x — test runner
+- `typescript` 5.6 — type checking
 
 ---
 
-## Build & Dev
+## Test Coverage
+
+40 test files in `src/__tests__/`:
+
+| Category | Files |
+|----------|-------|
+| Services | `claudeOutputParser`, `claudeSessionTracker`, `claudeTrustProfile`, `terminalContextBuilder`, `terminalExecService`, `terminalMemoryBridge`, `toolRegistry`, `teamStorageService`, `localMemoryStore`, `agentDefinitionService`, `tauriFs`, `fleetService` |
+| Hooks | `useClaudeSession`, `terminalErrorDetector` |
+| Components | `ClaudeConversation`, `ClaudeModeSelector`, `ClaudeNativeMode`, `ClaudeProjectBadge`, `EditDiffCard`, `FileEditor`, `FileExplorer`, `FileTree`, `FleetDashboard`, `HostKnowledgeCard`, `SessionRestoreBanner`, `SuggestionChips`, `TaskBoard`, `TeamControlBar`, `TeamLauncherModal`, `TokenBudgetGauge`, `ToolCallCard`, `ToolPalette` |
+| Config | `terminalConfig`, `terminalModes`, `teamConfig` |
+| Utils | `fileBlockParser`, `entityExtractor`, `notificationBeep` |
+| Integration | `TerminalChat.wiring` |
+| CLI | `claudeCliArgs` |
+
+---
+
+## Build & Run
 
 ```bash
-# Development
+# Install dependencies
 cd quox-terminal
-npm run dev         # Vite dev server (http://localhost:1420)
-npm run tauri dev   # Full Tauri dev mode
+npm install
 
-# Build
-npm run build       # Frontend build
-npm run tauri build # Full app build
+# Development (Vite + Tauri)
+npm run tauri dev
 
-# Test
-npm run test        # Vitest
-npm run test:watch  # Watch mode
+# Build production
+npm run tauri build
+
+# Run tests
+npm test
+
+# Type check
+npm run build  # runs tsc && vite build
 ```
 
 ---
 
-## Event Flow
+## Event System
 
-### Local PTY Session
-```
-TerminalPane → TerminalEmbed → tauri-pty.ts → invoke("pty_spawn")
-                                           → Rust pty/manager.rs
-                                           → portable-pty → shell process
-                                           → emit("pty-data-{id}")
-                                           → TerminalEmbed.onData()
-```
+### Tauri Events (Rust → Frontend)
 
-### Claude Mode Session
-```
-TerminalPane → ClaudePaneEmbed → tauri-claude.ts → invoke("claude_spawn")
-                                                → Rust claude/session.rs
-                                                → Claude CLI (--output-format stream-json)
-                                                → emit("claude-event-{id}")
-                                                → claudeOutputParser → ClaudeConversation
-```
+| Event | Payload | Emitter |
+|-------|---------|---------|
+| `pty-output-{session_id}` | `{ data: string }` | PTY read loop |
+| `pty-exit-{session_id}` | `{ code: number }` | PTY process exit |
+| `ssh-output-{session_id}` | `{ data: string }` | SSH channel read |
+| `ssh-exit-{session_id}` | `{ code: number }` | SSH channel close |
+| `claude-event-{session_id}` | JSON line | Claude CLI stdout |
+| `chat-stream-{stream_id}` | `{ delta: string }` | AI streaming response |
+| `chat-stream-done-{stream_id}` | `{}` | AI stream complete |
+| `collector-message` | JSON | Collector WebSocket |
+| `collector-status` | `string` | Collector connection state |
 
-### SSH Session
-```
-TerminalPane → SshTerminalEmbed → tauri-ssh.ts → invoke("ssh_connect")
-                                              → Rust ssh/session.rs
-                                              → russh (bastion tunnel)
-                                              → emit("ssh-data-{id}")
-                                              → SshTerminalEmbed.onData()
-```
+### Custom DOM Events (Frontend)
 
-### AI Chat (Non-CLI)
-```
-TerminalChat → invoke("chat_send_stream")
-            → Rust ai/streaming.rs
-            → Anthropic Messages API (SSE)
-            → emit("chat-stream-{id}", "chat-stream-done-{id}")
-            → TerminalChat.onMessage()
-```
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `claude-waiting` | — | Claude is waiting for user input (triggers tab flash) |
 
 ---
 
-*Last updated: 2026-05-14T18:30Z (verified by codebase-mirror)*
+## Security
+
+### CSP (Content Security Policy)
+```
+default-src 'self';
+style-src 'self' 'unsafe-inline';
+script-src 'self';
+connect-src 'self' https://api.anthropic.com https://github.com wss://localhost:* ws://localhost:*;
+img-src 'self' data:;
+font-src 'self' data:
+```
+
+### Command Safety
+- `safety/denylist.rs` blocks dangerous commands (rm -rf /, format, etc.)
+- `validate_command` Tauri command checks before execution
+- Frontend `useCommandSafety` hook provides warnings
+
+### Auth Priority (AI Chat)
+1. Claude CLI OAuth token (`~/.claude/.credentials.json` from `claude login`)
+2. Manual API key from Settings store
+3. `ANTHROPIC_API_KEY` environment variable
