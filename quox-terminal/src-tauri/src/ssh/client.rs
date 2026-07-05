@@ -9,6 +9,7 @@
 use async_trait::async_trait;
 use russh::client;
 use russh_keys::key::PublicKey;
+use russh_keys::PublicKeyBase64;
 use std::sync::Arc;
 
 use super::known_hosts;
@@ -41,31 +42,29 @@ impl client::Handler for ClientHandler {
         &mut self,
         server_public_key: &PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Determine key type string
-        let key_type = match server_public_key {
-            PublicKey::Ed25519(_) => "ssh-ed25519",
-            _ => "ssh-rsa",
-        };
+        // Encode the public key to wire-format bytes (SSH-standard: a
+        // length-prefixed algorithm name followed by the key material) for
+        // known_hosts comparison. This is done identically for every key
+        // type (Ed25519, RSA, ECDSA) — the key type must never determine
+        // whether verification happens.
+        let key_bytes = server_public_key.public_key_bytes();
 
-        // Encode the public key to wire-format bytes for known_hosts comparison.
-        let mut key_bytes = Vec::new();
-        let type_bytes = key_type.as_bytes();
-        key_bytes.extend_from_slice(&(type_bytes.len() as u32).to_be_bytes());
-        key_bytes.extend_from_slice(type_bytes);
-        match server_public_key {
-            PublicKey::Ed25519(key) => {
-                let raw = key.as_bytes();
-                key_bytes.extend_from_slice(&(raw.len() as u32).to_be_bytes());
-                key_bytes.extend_from_slice(raw);
-            }
-            _ => {
-                // For non-Ed25519 key types, accept with TOFU warning
-                log::warn!("SSH host key type {} — cannot verify, accepting (TOFU)", key_type);
-                return Ok(true);
-            }
-        }
+        // Derive the known_hosts key-type string from the algorithm name
+        // embedded in the wire-format blob itself, so the stored/compared
+        // type always matches the encoded key material exactly (e.g.
+        // "ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256").
+        let key_type = key_bytes
+            .get(0..4)
+            .map(|len_bytes| {
+                u32::from_be_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]])
+                    as usize
+            })
+            .and_then(|name_len| key_bytes.get(4..4 + name_len))
+            .and_then(|name_bytes| std::str::from_utf8(name_bytes).ok())
+            .unwrap_or("unknown")
+            .to_string();
 
-        match known_hosts::check_host_key(&self.host, self.port, key_type, &key_bytes) {
+        match known_hosts::check_host_key(&self.host, self.port, &key_type, &key_bytes) {
             Ok(known_hosts::HostKeyStatus::Trusted) => {
                 log::info!("SSH host key verified for {}:{}", self.host, self.port);
                 Ok(true)
@@ -75,7 +74,9 @@ impl client::Handler for ClientHandler {
                     "SSH host key unknown for {}:{} — accepting and saving (TOFU)",
                     self.host, self.port
                 );
-                if let Err(e) = known_hosts::add_host_key(&self.host, self.port, key_type, &key_bytes) {
+                if let Err(e) =
+                    known_hosts::add_host_key(&self.host, self.port, &key_type, &key_bytes)
+                {
                     log::warn!("Failed to save host key: {}", e);
                 }
                 Ok(true)
@@ -88,8 +89,16 @@ impl client::Handler for ClientHandler {
                 Ok(false)
             }
             Err(e) => {
-                log::warn!("Failed to check known_hosts: {} — accepting", e);
-                Ok(true)
+                // A missing known_hosts file is already reported as
+                // `Unknown` (legitimate first-use TOFU) by
+                // `check_host_key`, so any `Err` here means we genuinely
+                // could not verify (e.g. permission or read error) — fail
+                // closed rather than silently accepting an unverified key.
+                log::error!(
+                    "Failed to check known_hosts for {}:{}: {} — rejecting connection (fail closed)",
+                    self.host, self.port, e
+                );
+                Ok(false)
             }
         }
     }
