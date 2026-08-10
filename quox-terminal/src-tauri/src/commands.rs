@@ -130,21 +130,35 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
 }
 
 /// Write content to a file, optionally creating a backup.
+///
+/// `confirmed` must be `true` for Amber-severity paths (see fs/validation.rs);
+/// Red-severity paths are always rejected regardless of `confirmed`. Omitted
+/// (`None`) is treated as `false` -- callers that don't know about the
+/// confirmation flow get the safe default.
 #[tauri::command]
-pub fn fs_write_file(path: String, content: String, backup: bool) -> Result<(), String> {
-    crate::fs::operations::write_file(&path, &content, backup)
+pub fn fs_write_file(
+    path: String,
+    content: String,
+    backup: bool,
+    confirmed: Option<bool>,
+) -> Result<(), String> {
+    crate::fs::operations::write_file(&path, &content, backup, confirmed.unwrap_or(false))
 }
 
-/// Delete a file, optionally creating a backup.
+/// Delete a file, optionally creating a backup. See `fs_write_file` for `confirmed`.
 #[tauri::command]
-pub fn fs_delete_file(path: String, backup: bool) -> Result<(), String> {
-    crate::fs::operations::delete_file(&path, backup)
+pub fn fs_delete_file(path: String, backup: bool, confirmed: Option<bool>) -> Result<(), String> {
+    crate::fs::operations::delete_file(&path, backup, confirmed.unwrap_or(false))
 }
 
-/// Rename/move a file.
+/// Rename/move a file. See `fs_write_file` for `confirmed`.
 #[tauri::command]
-pub fn fs_rename_file(old_path: String, new_path: String) -> Result<(), String> {
-    crate::fs::operations::rename_file(&old_path, &new_path)
+pub fn fs_rename_file(
+    old_path: String,
+    new_path: String,
+    confirmed: Option<bool>,
+) -> Result<(), String> {
+    crate::fs::operations::rename_file(&old_path, &new_path, confirmed.unwrap_or(false))
 }
 
 /// List directory entries (directories first, then files, alphabetical).

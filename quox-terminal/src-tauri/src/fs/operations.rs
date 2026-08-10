@@ -8,6 +8,28 @@ use std::path::Path;
 
 use super::validation::{validate_path, PathSeverity};
 
+/// Enforce a path's severity classification for a destructive operation
+/// (write, delete, rename). Mirrors the safety/denylist.rs BLOCK behaviour:
+/// - `Blocked` and `Red` are never allowed (Red has no override, same as a
+///   RED+blocked denylist entry).
+/// - `Amber` requires the caller to have obtained user confirmation first
+///   (`confirmed == true`); otherwise the operation is refused.
+/// - `Green` always proceeds.
+fn enforce_severity(path: &str, severity: PathSeverity, confirmed: bool, verb: &str) -> Result<(), String> {
+    match severity {
+        PathSeverity::Blocked => Err(format!("Path blocked by security policy: {}", path)),
+        PathSeverity::Red => Err(format!(
+            "Path blocked by security policy (RED - dangerous system path, cannot {}): {}",
+            verb, path
+        )),
+        PathSeverity::Amber if !confirmed => Err(format!(
+            "Confirmation required before {} sensitive path (AMBER): {}",
+            verb, path
+        )),
+        PathSeverity::Amber | PathSeverity::Green => Ok(()),
+    }
+}
+
 /// A directory entry returned by `list_dir`.
 #[derive(Debug, serde::Serialize)]
 pub struct DirEntry {
@@ -47,11 +69,9 @@ pub fn read_file(path: &str) -> Result<String, String> {
 /// If `backup` is true and the file already exists, the existing file is copied
 /// to `{path}.quox-backup` before the new content is written.
 /// Parent directories are created automatically.
-pub fn write_file(path: &str, content: &str, backup: bool) -> Result<(), String> {
+pub fn write_file(path: &str, content: &str, backup: bool, confirmed: bool) -> Result<(), String> {
     let severity = validate_path(path);
-    if severity == PathSeverity::Blocked {
-        return Err(format!("Path blocked by security policy: {}", path));
-    }
+    enforce_severity(path, severity, confirmed, "write to")?;
 
     let p = Path::new(path);
 
@@ -77,11 +97,9 @@ pub fn write_file(path: &str, content: &str, backup: bool) -> Result<(), String>
 ///
 /// If `backup` is true and the file exists, it is copied to `{path}.quox-backup`
 /// before deletion.
-pub fn delete_file(path: &str, backup: bool) -> Result<(), String> {
+pub fn delete_file(path: &str, backup: bool, confirmed: bool) -> Result<(), String> {
     let severity = validate_path(path);
-    if severity == PathSeverity::Blocked {
-        return Err(format!("Path blocked by security policy: {}", path));
-    }
+    enforce_severity(path, severity, confirmed, "delete")?;
 
     let p = Path::new(path);
     if !p.exists() {
@@ -104,22 +122,14 @@ pub fn delete_file(path: &str, backup: bool) -> Result<(), String> {
 /// Rename (move) a file from `old_path` to `new_path`.
 ///
 /// Parent directories for `new_path` are created automatically.
-pub fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
+pub fn rename_file(old_path: &str, new_path: &str, confirmed: bool) -> Result<(), String> {
     let old_severity = validate_path(old_path);
     let new_severity = validate_path(new_path);
 
-    if old_severity == PathSeverity::Blocked {
-        return Err(format!(
-            "Source path blocked by security policy: {}",
-            old_path
-        ));
-    }
-    if new_severity == PathSeverity::Blocked {
-        return Err(format!(
-            "Destination path blocked by security policy: {}",
-            new_path
-        ));
-    }
+    enforce_severity(old_path, old_severity, confirmed, "rename/move")
+        .map_err(|e| format!("Source: {}", e))?;
+    enforce_severity(new_path, new_severity, confirmed, "rename/move")
+        .map_err(|e| format!("Destination: {}", e))?;
 
     let old_p = Path::new(old_path);
     if !old_p.exists() {
@@ -228,4 +238,139 @@ pub fn list_dir(path: &str) -> Result<Vec<DirEntry>, String> {
     });
 
     Ok(entries)
+}
+
+#[cfg(test)]
+mod severity_tests {
+    use super::*;
+
+    #[test]
+    fn test_green_always_allowed() {
+        assert!(enforce_severity("/tmp/test.txt", PathSeverity::Green, false, "write to").is_ok());
+        assert!(enforce_severity("/tmp/test.txt", PathSeverity::Green, true, "write to").is_ok());
+    }
+
+    #[test]
+    fn test_blocked_always_denied() {
+        assert!(
+            enforce_severity("/tmp/../etc/passwd", PathSeverity::Blocked, true, "write to")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn test_red_denied_even_when_confirmed() {
+        let err_unconfirmed =
+            enforce_severity("/dev/sda", PathSeverity::Red, false, "write to").unwrap_err();
+        assert!(err_unconfirmed.contains("RED"));
+
+        // Red has no override -- unlike Amber, passing confirmed=true must not help.
+        let err_confirmed =
+            enforce_severity("/dev/sda", PathSeverity::Red, true, "write to").unwrap_err();
+        assert!(err_confirmed.contains("RED"));
+    }
+
+    #[test]
+    fn test_amber_denied_without_confirmation() {
+        let err =
+            enforce_severity("/etc/hosts", PathSeverity::Amber, false, "write to").unwrap_err();
+        assert!(err.contains("Confirmation required"));
+    }
+
+    #[test]
+    fn test_amber_allowed_with_confirmation() {
+        assert!(enforce_severity("/etc/hosts", PathSeverity::Amber, true, "write to").is_ok());
+    }
+}
+
+#[cfg(test)]
+mod operation_tests {
+    use super::*;
+    use std::fs;
+
+    /// Unique path under the OS temp dir for tests that need to touch real disk.
+    /// Never resolves to a Red/Amber/Blocked path.
+    fn unique_tmp_path(name: &str) -> String {
+        format!(
+            "{}/quoxterm-test-{}-{}",
+            std::env::temp_dir().display(),
+            std::process::id(),
+            name
+        )
+    }
+
+    #[test]
+    fn test_write_file_red_path_blocked_no_io() {
+        // Enforcement happens before any filesystem write, so this is safe to run
+        // even as root: no bytes are ever written to /proc.
+        let result = write_file("/proc/quoxterm-safety-test", "data", false, false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("RED"));
+    }
+
+    #[test]
+    fn test_write_file_red_path_blocked_even_when_confirmed() {
+        let result = write_file("/proc/quoxterm-safety-test", "data", false, true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_write_file_amber_path_requires_confirmation() {
+        let result = write_file(
+            "/etc/quoxterm-safety-test-unconfirmed",
+            "data",
+            false,
+            false,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Confirmation required"));
+    }
+
+    #[test]
+    fn test_write_file_green_path_succeeds() {
+        let path = unique_tmp_path("write-green.txt");
+        let result = write_file(&path, "hello", false, false);
+        assert!(result.is_ok());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "hello");
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_delete_file_red_path_blocked() {
+        let result = delete_file("/dev/quoxterm-safety-test", false, true);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("RED"));
+    }
+
+    #[test]
+    fn test_delete_file_amber_path_requires_confirmation() {
+        let result = delete_file("/etc/quoxterm-safety-test-delete", false, false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Confirmation required"));
+    }
+
+    #[test]
+    fn test_rename_file_amber_destination_requires_confirmation() {
+        let src = unique_tmp_path("rename-src.txt");
+        fs::write(&src, "x").unwrap();
+
+        let result = rename_file(&src, "/etc/quoxterm-safety-test-rename-target", false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Confirmation required"));
+
+        let _ = fs::remove_file(&src);
+    }
+
+    #[test]
+    fn test_rename_file_green_to_green_succeeds() {
+        let src = unique_tmp_path("rename-src2.txt");
+        let dst = unique_tmp_path("rename-dst2.txt");
+        fs::write(&src, "x").unwrap();
+
+        let result = rename_file(&src, &dst, false);
+        assert!(result.is_ok());
+        assert!(fs::metadata(&dst).is_ok());
+
+        let _ = fs::remove_file(&dst);
+    }
 }

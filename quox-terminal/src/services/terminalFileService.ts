@@ -187,6 +187,7 @@ export async function writeFile(
   action: string,
   _authFetch?: unknown,
   extra?: { targetPath?: string; backupPath?: string },
+  confirmed = false,
 ): Promise<WriteFileResult> {
   if (!filePath || !filePath.startsWith('/')) {
     return { ok: false, error: 'Invalid file path' };
@@ -194,25 +195,27 @@ export async function writeFile(
 
   try {
     if (action === 'restore' && extra?.backupPath) {
-      // Restore from backup: read backup, write to original path
+      // Restore from backup: read backup, write to original path. This puts
+      // back content the file already had, so it's treated as pre-confirmed
+      // regardless of the caller's confirmed flag.
       const backupContent = await invoke<string>('fs_read_file', { path: extra.backupPath });
-      await invoke('fs_write_file', { path: filePath, content: backupContent, backup: false });
+      await invoke('fs_write_file', { path: filePath, content: backupContent, backup: false, confirmed: true });
       return { ok: true };
     }
 
     if (action === 'delete') {
-      await invoke('fs_delete_file', { path: filePath, backup: true });
+      await invoke('fs_delete_file', { path: filePath, backup: true, confirmed });
       return { ok: true, backupPath: `${filePath}.quox-backup` };
     }
 
     if (action === 'rename' && extra?.targetPath) {
-      await invoke('fs_rename_file', { oldPath: filePath, newPath: extra.targetPath });
+      await invoke('fs_rename_file', { oldPath: filePath, newPath: extra.targetPath, confirmed });
       return { ok: true, backupPath: filePath };
     }
 
     // create or edit
     const needsBackup = action === 'edit';
-    await invoke('fs_write_file', { path: filePath, content, backup: needsBackup });
+    await invoke('fs_write_file', { path: filePath, content, backup: needsBackup, confirmed });
     return {
       ok: true,
       backupPath: needsBackup ? `${filePath}.quox-backup` : undefined,

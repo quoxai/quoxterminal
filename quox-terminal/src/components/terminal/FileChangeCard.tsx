@@ -80,11 +80,20 @@ export default function FileChangeCard({
     isRename && targetPath ? validateFilePath(targetPath) : null;
   const isAudit = mode === 'audit';
   const noSession = !sessionId;
+  // RED is enforced server-side with no override (see fs/operations.rs), so treat
+  // it the same as BLOCKED here: no Apply button, nothing to confirm into.
   const isBlocked =
-    !pathValidation.valid || (targetValidation != null && !targetValidation.valid);
+    !pathValidation.valid ||
+    pathValidation.severity === 'RED' ||
+    (targetValidation != null && (!targetValidation.valid || targetValidation.severity === 'RED'));
 
-  // Delete always requires confirmation (even in balanced/builder) since destructive
-  const forceConfirm = isDelete && !isAudit;
+  // Delete always requires confirmation (even in balanced/builder) since destructive.
+  // AMBER paths also require confirmation in every mode -- the Rust backend rejects
+  // an AMBER write/delete/rename unless it's told the user confirmed.
+  const forceConfirm =
+    (isDelete && !isAudit) ||
+    pathValidation.severity === 'AMBER' ||
+    (targetValidation != null && targetValidation.severity === 'AMBER');
 
   const fileName = filePath.split('/').pop() || filePath;
 
@@ -137,7 +146,7 @@ export default function FileChangeCard({
       applyState,
       targetPath,
       severity: pathValidation.severity,
-      doApply: () => doApply(),
+      doApply: (confirmed?: boolean) => doApply(!!confirmed),
       setExpanded,
     });
     return () => group.unregister(cardId);
@@ -147,8 +156,9 @@ export default function FileChangeCard({
     setExpanded((prev) => !prev);
   }, []);
 
-  // Core apply logic (no confirmation gate)
-  const doApply = useCallback(async () => {
+  // Core apply logic (no confirmation gate -- caller decides via `confirmed`
+  // whether the user has already approved an AMBER-severity path)
+  const doApply = useCallback(async (confirmed: boolean = false) => {
     if (isAudit || noSession || isBlocked || applyState === 'applying') return;
 
     setApplyState('applying');
@@ -163,6 +173,7 @@ export default function FileChangeCard({
       action,
       authFetch,
       extra,
+      confirmed,
     );
 
     if (result.ok) {
@@ -210,7 +221,7 @@ export default function FileChangeCard({
 
   const handleConfirm = useCallback(() => {
     setConfirmPending(false);
-    doApply();
+    doApply(true);
   }, [doApply]);
 
   const handleConfirmClose = useCallback(() => {

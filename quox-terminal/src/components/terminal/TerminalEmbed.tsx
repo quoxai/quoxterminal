@@ -36,6 +36,8 @@ import {
   onPtyExit,
 } from "../../lib/tauri-pty";
 import { trackSessionStart, trackSessionEnd } from "../../services/terminalMemoryBridge";
+import { useCommandSafety, type ValidationResult } from "../../hooks/useCommandSafety";
+import TerminalExecConfirmModal from "./TerminalExecConfirmModal";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 export const TERM_THEME = {
@@ -119,6 +121,32 @@ export default function TerminalEmbed({
   const termDataListenerRef = useRef<{ dispose: () => void } | null>(null);
   const termResizeListenerRef = useRef<{ dispose: () => void } | null>(null);
 
+  // ── Command safety (typed input path) ──────────────────────────────
+  // Best-effort tracking of the line currently being typed at the shell
+  // prompt, so it can be validated against the safety denylist (the same
+  // validate_command Tauri command the AI-proposed-command flow uses) before
+  // Enter is forwarded to the pty. This cannot see real readline state
+  // (history recall, cursor movement) -- it tracks plain typing + backspace
+  // + Ctrl-C/Ctrl-U resets, which covers normal interactive use.
+  const lineBufferRef = useRef<string>("");
+  const warnConfirmedLineRef = useRef<string | null>(null);
+  const inputQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const { validateCommand } = useCommandSafety();
+  const [safetyBanner, setSafetyBanner] = useState<
+    | null
+    | { kind: "blocked" | "warn"; command: string; description: string }
+  >(null);
+  const [safetyModal, setSafetyModal] = useState<
+    | null
+    | {
+        command: string;
+        validation: { action?: string; severity?: string; description?: string };
+        sid: string;
+        newline: string;
+      }
+  >(null);
+  const safetyBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Store callbacks in refs to avoid re-render loops
   const onConnectRef = useRef(onConnect);
   const onDisconnectRef = useRef(onDisconnect);
@@ -133,6 +161,173 @@ export default function TerminalEmbed({
   onSessionIdRef.current = onSessionId;
   onDataRef.current = onData;
   customKeyHandlerRef.current = customKeyHandler;
+
+  /** Show the blocked/warn banner for a limited time, then auto-hide it.
+   *  (The underlying gate itself is not time-limited -- re-pressing Enter
+   *  on an unchanged blocked line re-shows it.) */
+  const showSafetyBanner = useCallback(
+    (kind: "blocked" | "warn", command: string, description: string) => {
+      if (safetyBannerTimerRef.current) clearTimeout(safetyBannerTimerRef.current);
+      setSafetyBanner({ kind, command, description });
+      safetyBannerTimerRef.current = setTimeout(() => {
+        setSafetyBanner(null);
+      }, kind === "blocked" ? 6000 : 4000);
+    },
+    [],
+  );
+
+  /** Validate a completed line before it is allowed to reach the pty as a
+   *  command. Returns true if the withheld newline should now be sent. */
+  const gateLine = useCallback(
+    async (sid: string, rawLine: string, newline: string): Promise<boolean> => {
+      const command = rawLine.trim();
+      if (!command) return true;
+
+      // Second Enter press on an unchanged WARN line -- run it now.
+      if (warnConfirmedLineRef.current === command) {
+        warnConfirmedLineRef.current = null;
+        return true;
+      }
+
+      let result: ValidationResult;
+      try {
+        result = await validateCommand(command);
+      } catch (err) {
+        // Fail open on a validator error -- don't hang the terminal on a
+        // backend fault. This mirrors how a validation-layer outage should
+        // not itself become a denial-of-service on the terminal.
+        console.error("[TerminalEmbed] validate_command failed:", err);
+        return true;
+      }
+
+      if (result.action === "BLOCK") {
+        warnConfirmedLineRef.current = null;
+        showSafetyBanner("blocked", command, result.description || "This command is blocked by the safety policy.");
+        return false;
+      }
+
+      if (result.action === "REQUIRE_APPROVAL" || result.action === "REQUIRE_OVERRIDE") {
+        warnConfirmedLineRef.current = null;
+        setSafetyModal({
+          command,
+          validation: {
+            action: result.action,
+            severity: result.severity,
+            description: result.description ?? undefined,
+          },
+          sid,
+          newline,
+        });
+        return false;
+      }
+
+      if (result.action === "WARN") {
+        warnConfirmedLineRef.current = command;
+        showSafetyBanner("warn", command, result.description || "This command may be risky. Press Enter again to run it.");
+        return false;
+      }
+
+      return true; // ALLOW
+    },
+    [validateCommand, showSafetyBanner],
+  );
+
+  /** Process one onData chunk: forward benign input immediately, but hold
+   *  back Enter/newline on a completed line until gateLine() clears it. */
+  const forwardGated = useCallback(
+    async (sid: string, chunk: string) => {
+      let segment = "";
+
+      const flush = async () => {
+        if (!segment) return;
+        const toSend = segment;
+        segment = "";
+        try {
+          await ptyWrite(sid, toSend);
+        } catch (err) {
+          console.error("PTY write failed:", err);
+          setStatus("error");
+        }
+      };
+
+      for (let idx = 0; idx < chunk.length; idx++) {
+        const ch = chunk[idx];
+
+        if (ch === "\x1b") {
+          // Escape sequence (arrow keys, history recall, etc). Best-effort
+          // only: we don't track cursor movement against the line buffer,
+          // so just forward the rest of this chunk untouched.
+          segment += chunk.slice(idx);
+          idx = chunk.length;
+          break;
+        }
+
+        if (ch === "\r" || ch === "\n") {
+          await flush();
+          const allowed = await gateLine(sid, lineBufferRef.current, ch);
+          if (allowed) {
+            try {
+              await ptyWrite(sid, ch);
+            } catch (err) {
+              console.error("PTY write failed:", err);
+              setStatus("error");
+            }
+            lineBufferRef.current = "";
+            warnConfirmedLineRef.current = null;
+          }
+          continue;
+        }
+
+        if (ch === "\x7f" || ch === "\b") {
+          lineBufferRef.current = lineBufferRef.current.slice(0, -1);
+          warnConfirmedLineRef.current = null;
+          setSafetyBanner(null);
+          segment += ch;
+          continue;
+        }
+
+        if (ch === "\x03" || ch === "\x15") {
+          // Ctrl-C / Ctrl-U -- reset tracked line
+          lineBufferRef.current = "";
+          warnConfirmedLineRef.current = null;
+          setSafetyBanner(null);
+          segment += ch;
+          continue;
+        }
+
+        lineBufferRef.current += ch;
+        warnConfirmedLineRef.current = null;
+        setSafetyBanner(null);
+        segment += ch;
+      }
+
+      await flush();
+    },
+    [gateLine],
+  );
+
+  /** Confirm a REQUIRE_APPROVAL/REQUIRE_OVERRIDE command from the modal --
+   *  sends only the withheld newline; the command text is already on-screen
+   *  since every typed character up to Enter was forwarded as it was typed. */
+  const handleSafetyModalConfirm = useCallback(() => {
+    const pending = safetyModal;
+    setSafetyModal(null);
+    if (!pending) return;
+    ptyWrite(pending.sid, pending.newline)
+      .then(() => {
+        lineBufferRef.current = "";
+        warnConfirmedLineRef.current = null;
+      })
+      .catch((err) => {
+        console.error("PTY write failed:", err);
+        setStatus("error");
+      });
+  }, [safetyModal]);
+
+  const handleSafetyModalClose = useCallback(() => {
+    // Cancel -- leave the line on the prompt so the user can edit/clear it.
+    setSafetyModal(null);
+  }, []);
 
   /** Detach PTY event listeners */
   const detachPty = useCallback(() => {
@@ -168,6 +363,12 @@ export default function TerminalEmbed({
     }
     fitAddonRef.current = null;
     sessionIdRef.current = null;
+    if (safetyBannerTimerRef.current) {
+      clearTimeout(safetyBannerTimerRef.current);
+      safetyBannerTimerRef.current = null;
+    }
+    lineBufferRef.current = "";
+    warnConfirmedLineRef.current = null;
   }, [detachPty]);
 
   /** Connect to a PTY session and wire up events.
@@ -230,12 +431,20 @@ export default function TerminalEmbed({
         });
         unlistenExitRef.current = unlistenExit;
 
-        // Wire terminal input → PTY stdin
+        // Wire terminal input → PTY stdin, gated by the safety validator.
+        // Reset tracked line state for the (re)connected session.
+        lineBufferRef.current = "";
+        warnConfirmedLineRef.current = null;
+        setSafetyBanner(null);
+        setSafetyModal(null);
+        inputQueueRef.current = Promise.resolve();
         termDataListenerRef.current = term.onData((data) => {
-          ptyWrite(sid, data).catch((err) => {
-            console.error("PTY write failed:", err);
-            setStatus("error");
-          });
+          // Chain onto the queue so overlapping keystrokes (which each
+          // trigger an async validate_command round-trip on Enter) are
+          // processed strictly in the order they were typed.
+          inputQueueRef.current = inputQueueRef.current.then(() =>
+            forwardGated(sid, data),
+          );
         });
 
         // Wire terminal resize → PTY resize
@@ -261,7 +470,7 @@ export default function TerminalEmbed({
         setStatus("error");
       }
     },
-    [shell, shellArgs, cwd, env, detachPty],
+    [shell, shellArgs, cwd, env, detachPty, forwardGated],
   );
 
   // Create terminal + initial connection
@@ -444,6 +653,44 @@ export default function TerminalEmbed({
         </div>
       </div>
       <div className="terminal-embed__terminal" ref={containerRef} />
+
+      {/* Typed-command safety banner (BLOCK / WARN) */}
+      {safetyBanner && (
+        <div
+          className={`terminal-embed__safety-banner terminal-embed__safety-banner--${safetyBanner.kind}`}
+        >
+          <svg
+            className="terminal-embed__safety-banner-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+          </svg>
+          <span className="terminal-embed__safety-banner-text">
+            {safetyBanner.kind === "blocked" ? "Blocked: " : "Warning: "}
+            {safetyBanner.description}
+          </span>
+          {safetyBanner.kind === "warn" && (
+            <span className="terminal-embed__safety-banner-hint">
+              Press Enter again to run anyway
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* REQUIRE_APPROVAL / REQUIRE_OVERRIDE modal for typed commands --
+          reuses the same confirm modal as the AI-proposed-command flow. */}
+      {safetyModal && (
+        <TerminalExecConfirmModal
+          isOpen={true}
+          onClose={handleSafetyModalClose}
+          onConfirm={handleSafetyModalConfirm}
+          command={safetyModal.command}
+          validation={safetyModal.validation}
+        />
+      )}
     </div>
   );
 }

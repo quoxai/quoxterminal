@@ -32,7 +32,7 @@ interface CardHandlers {
   applyState: string;
   targetPath?: string;
   severity: PathSeverity;
-  doApply: () => Promise<void> | void;
+  doApply: (confirmed?: boolean) => Promise<void> | void;
   setExpanded: (v: boolean) => void;
 }
 
@@ -256,7 +256,7 @@ export function FileChangeGroupProvider({
     }
   }, []);
 
-  const executeBatchApply = useCallback(async () => {
+  const executeBatchApply = useCallback(async (confirmed: boolean) => {
     const cards = Array.from(cardsRef.current.values());
     const applyable = cards.filter(
       (c) => c.applyState === 'idle' && c.doApply,
@@ -269,7 +269,7 @@ export function FileChangeGroupProvider({
 
     for (let i = 0; i < applyable.length; i++) {
       setBatchProgress({ current: i + 1, total: applyable.length });
-      await applyable[i].doApply();
+      await applyable[i].doApply(confirmed);
     }
 
     setBatchState('done');
@@ -293,11 +293,13 @@ export function FileChangeGroupProvider({
         files,
         onConfirm: () => {
           setConfirmModal(null);
-          executeBatchApply();
+          // Modal already showed each file's severity (including AMBER/RED
+          // labels) and the user explicitly confirmed the batch.
+          executeBatchApply(true);
         },
       });
     } else {
-      executeBatchApply();
+      executeBatchApply(false);
     }
   }, [policy.requireConfirmModal, executeBatchApply]);
 

@@ -106,3 +106,44 @@
 .terminal-embed__terminal .xterm-viewport {
   overflow-y: auto !important;
 }
+
+/* Command safety banner — shown when a typed line is blocked or warned by
+   the safety denylist before it reaches the shell (see validate_command). */
+.terminal-embed__safety-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  animation: terminal-safety-fade-in 0.15s ease-out;
+}
+
+.terminal-embed__safety-banner--blocked {
+  background: rgba(234, 108, 115, 0.12);
+  color: #ea6c73;
+}
+
+.terminal-embed__safety-banner--warn {
+  background: rgba(249, 175, 79, 0.12);
+  color: #f9af4f;
+}
+
+.terminal-embed__safety-banner-icon {
+  flex-shrink: 0;
+}
+
+.terminal-embed__safety-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal-embed__safety-banner-hint {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+@keyframes terminal-safety-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
