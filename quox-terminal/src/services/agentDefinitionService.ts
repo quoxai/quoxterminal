@@ -115,7 +115,7 @@ export async function writeAgentDefinitions(
     try {
       // Ensure directory exists
       await invoke('fs_create_dir', { path: agentsDir, recursive: true }).catch(() => {});
-      await invoke('fs_write_file', { path: filePath, content });
+      await invoke('fs_write_file', { path: filePath, content, backup: false });
       written.push(filePath);
     } catch {
       skipped.push(filePath);

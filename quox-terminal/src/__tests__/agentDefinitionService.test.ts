@@ -1,7 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockInvoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
 import {
   generateAgentDefinition,
   generateLeadPrompt,
+  writeAgentDefinitions,
 } from '../services/agentDefinitionService';
 import { TEAM_TEMPLATES } from '../config/teamConfig';
 import type { AgentRole, TeamSession } from '../config/teamConfig';
@@ -107,6 +114,61 @@ describe('agentDefinitionService', () => {
       }));
       const prompt = generateLeadPrompt(session);
       expect(prompt).toBe('');
+    });
+  });
+
+  describe('writeAgentDefinitions', () => {
+    const makeSession = (): TeamSession => ({
+      id: 'ts-test',
+      templateId: featureBuild.id,
+      templateName: featureBuild.name,
+      taskListId: 'task-123',
+      workspaceId: 'ws-0',
+      agents: featureBuild.agents.map((role, i) => ({
+        paneId: `pane-${i}`,
+        role,
+        sessionId: null,
+        status: 'pending' as const,
+      })),
+      status: 'setting-up',
+      startedAt: Date.now(),
+      projectDir: '/home/user/my-project',
+      workingOn: 'Add user authentication',
+    });
+
+    beforeEach(() => {
+      mockInvoke.mockReset();
+    });
+
+    it('calls fs_write_file with a backup key for each new agent file', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'fs_read_file') return Promise.reject(new Error('not found'));
+        return Promise.resolve(undefined);
+      });
+
+      const { written, skipped } = await writeAgentDefinitions(makeSession());
+
+      expect(skipped).toEqual([]);
+      expect(written.length).toBe(allRoles.length);
+      const writeCalls = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'fs_write_file');
+      expect(writeCalls.length).toBe(allRoles.length);
+      for (const [, args] of writeCalls) {
+        expect(args).toHaveProperty('backup');
+        expect((args as { backup: unknown }).backup).toBe(false);
+      }
+    });
+
+    it('skips files that already exist', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'fs_read_file') return Promise.resolve('existing content');
+        return Promise.resolve(undefined);
+      });
+
+      const { written, skipped } = await writeAgentDefinitions(makeSession());
+
+      expect(written).toEqual([]);
+      expect(skipped.length).toBe(allRoles.length);
+      expect(mockInvoke.mock.calls.some(([cmd]) => cmd === 'fs_write_file')).toBe(false);
     });
   });
 });
