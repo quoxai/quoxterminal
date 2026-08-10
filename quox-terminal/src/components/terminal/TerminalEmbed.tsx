@@ -130,6 +130,11 @@ export default function TerminalEmbed({
   // + Ctrl-C/Ctrl-U resets, which covers normal interactive use.
   const lineBufferRef = useRef<string>("");
   const warnConfirmedLineRef = useRef<string | null>(null);
+  // Bracketed paste (ESC[200~ ... ESC[201~) can straddle multiple onData
+  // chunks for a large paste, so "currently inside a paste" has to be
+  // tracked as state that persists across forwardGated() calls, not just
+  // locally within one chunk. See forwardGated() for why this exists.
+  const bracketedPasteActiveRef = useRef<boolean>(false);
   const inputQueueRef = useRef<Promise<void>>(Promise.resolve());
   const { validateCommand } = useCommandSafety();
   const [safetyBanner, setSafetyBanner] = useState<
@@ -250,13 +255,46 @@ export default function TerminalEmbed({
         }
       };
 
+      const PASTE_START = "\x1b[200~";
+      const PASTE_END = "\x1b[201~";
+
       for (let idx = 0; idx < chunk.length; idx++) {
         const ch = chunk[idx];
 
         if (ch === "\x1b") {
-          // Escape sequence (arrow keys, history recall, etc). Best-effort
-          // only: we don't track cursor movement against the line buffer,
-          // so just forward the rest of this chunk untouched.
+          // Bracketed paste mode (on by default in modern bash/zsh
+          // readline) delivers pasted text wrapped as ESC[200~<text>ESC[201~
+          // in the onData stream. <text> is untrusted and can contain a
+          // command-executing newline (e.g. pasting "rm -rf ~\n"), so it
+          // must flow through the exact same line-buffer/gate path as
+          // typed input below -- it must NEVER be forwarded to the pty raw.
+          if (!bracketedPasteActiveRef.current && chunk.startsWith(PASTE_START, idx)) {
+            bracketedPasteActiveRef.current = true;
+            idx += PASTE_START.length - 1;
+            continue;
+          }
+          if (bracketedPasteActiveRef.current && chunk.startsWith(PASTE_END, idx)) {
+            bracketedPasteActiveRef.current = false;
+            idx += PASTE_END.length - 1;
+            continue;
+          }
+          if (bracketedPasteActiveRef.current) {
+            // An ESC byte inside an active paste is untrusted pasted
+            // content, not a real terminal escape sequence -- treat it as
+            // an ordinary character (same as the fallthrough case below)
+            // instead of forwarding the remainder of the chunk raw.
+            lineBufferRef.current += ch;
+            warnConfirmedLineRef.current = null;
+            setSafetyBanner(null);
+            segment += ch;
+            continue;
+          }
+          // Genuine escape sequence outside of a paste (arrow keys, history
+          // recall, etc). Best-effort only: we don't track cursor movement
+          // against the line buffer, so just forward the rest of this chunk
+          // untouched -- a documented, acceptable simplification, since
+          // these sequences are a handful of bytes and never carry a
+          // command-executing newline in normal terminal use.
           segment += chunk.slice(idx);
           idx = chunk.length;
           break;
@@ -369,6 +407,7 @@ export default function TerminalEmbed({
     }
     lineBufferRef.current = "";
     warnConfirmedLineRef.current = null;
+    bracketedPasteActiveRef.current = false;
   }, [detachPty]);
 
   /** Connect to a PTY session and wire up events.
@@ -435,6 +474,7 @@ export default function TerminalEmbed({
         // Reset tracked line state for the (re)connected session.
         lineBufferRef.current = "";
         warnConfirmedLineRef.current = null;
+        bracketedPasteActiveRef.current = false;
         setSafetyBanner(null);
         setSafetyModal(null);
         inputQueueRef.current = Promise.resolve();

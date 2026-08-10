@@ -106,6 +106,20 @@ async function pressEnter() {
   });
 }
 
+/** Feed one raw chunk through the captured onData handler exactly as
+ *  xterm.js would deliver it (e.g. an entire bracketed-paste sequence
+ *  arriving as a single onData call, or split across two calls for a
+ *  large paste). */
+async function sendChunk(chunk: string) {
+  await act(async () => {
+    capturedOnData?.(chunk);
+    // Let the async validate_command round-trip settle.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 describe("TerminalEmbed safety gate (typed-command validation)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -247,6 +261,158 @@ describe("TerminalEmbed safety gate (typed-command validation)", () => {
       fireEvent.click(confirmBtn);
     });
 
+    expect(mockPtyWrite).toHaveBeenCalledWith("mock-pty-session", "\r");
+  });
+});
+
+describe("TerminalEmbed safety gate (bracketed paste)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedOnData = null;
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "pty_spawn") return Promise.resolve("mock-pty-session");
+      if (cmd === "validate_command") {
+        return Promise.resolve({
+          action: "ALLOW",
+          severity: "GREEN",
+          description: null,
+          pattern: null,
+          blocked: false,
+          requires_auth: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+  });
+
+  /** Every fixed-code ptyWrite call to the pty either withholds a gated
+   *  newline (a bare "\r"/"\n") or is buffered text that never itself
+   *  contains an embedded "\r"/"\n". The pre-fix bug forwarded a single
+   *  combined write containing both the pasted command text AND its
+   *  executing newline in one un-gated call -- this asserts that shape
+   *  never occurs. */
+  function assertNoUngatedNewlineWrite() {
+    for (const call of mockPtyWrite.mock.calls) {
+      const written = call[1] as string;
+      if (written === "\r" || written === "\n") continue; // gated newline, fine
+      expect(written).not.toMatch(/[\r\n]/);
+    }
+  }
+
+  it("gates a bracketed-paste of a BLOCK-tier command delivered in one chunk", async () => {
+    mockInvoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+      if (cmd === "pty_spawn") return Promise.resolve("mock-pty-session");
+      if (cmd === "validate_command" && args?.command === "rm -rf /") {
+        return Promise.resolve({
+          action: "BLOCK",
+          severity: "RED",
+          description: "Recursive delete from root or home",
+          pattern: null,
+          blocked: true,
+          requires_auth: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    await act(async () => {
+      render(<TerminalEmbed />);
+    });
+    await waitFor(() => expect(capturedOnData).not.toBeNull());
+
+    // Bracketed paste of a dangerous command with an embedded trailing
+    // Enter, delivered as xterm.js would deliver it: one onData chunk.
+    await sendChunk("\x1b[200~rm -rf /\x1b[201~\r");
+
+    // The gate must actually have fired on the pasted content -- if this
+    // fails, the paste bypassed gateLine() entirely (the pre-fix bug).
+    expect(mockInvoke).toHaveBeenCalledWith("validate_command", { command: "rm -rf /" });
+
+    // The executing newline must never reach the pty.
+    expect(mockPtyWrite).not.toHaveBeenCalledWith("mock-pty-session", "\r");
+    expect(mockPtyWrite).not.toHaveBeenCalledWith("mock-pty-session", "\n");
+
+    // No single write may combine the dangerous text with its execute byte.
+    assertNoUngatedNewlineWrite();
+
+    // The raw wrapped chunk (markers + text + newline) must never be
+    // forwarded verbatim -- that is exactly the pre-fix vulnerable write.
+    expect(mockPtyWrite).not.toHaveBeenCalledWith(
+      "mock-pty-session",
+      "\x1b[200~rm -rf /\x1b[201~\r",
+    );
+
+    expect(await screen.findByText(/Blocked:/)).toBeDefined();
+  });
+
+  it("gates a bracketed-paste of a BLOCK-tier command split across two onData chunks", async () => {
+    mockInvoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+      if (cmd === "pty_spawn") return Promise.resolve("mock-pty-session");
+      if (cmd === "validate_command" && args?.command === "rm -rf /") {
+        return Promise.resolve({
+          action: "BLOCK",
+          severity: "RED",
+          description: "Recursive delete from root or home",
+          pattern: null,
+          blocked: true,
+          requires_auth: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    await act(async () => {
+      render(<TerminalEmbed />);
+    });
+    await waitFor(() => expect(capturedOnData).not.toBeNull());
+
+    // A large paste can straddle onData chunks: paste-start + content in
+    // one chunk, paste-end + Enter in a second, later chunk.
+    await sendChunk("\x1b[200~rm -rf /");
+    await sendChunk("\x1b[201~\r");
+
+    expect(mockInvoke).toHaveBeenCalledWith("validate_command", { command: "rm -rf /" });
+    expect(mockPtyWrite).not.toHaveBeenCalledWith("mock-pty-session", "\r");
+    expect(mockPtyWrite).not.toHaveBeenCalledWith("mock-pty-session", "\n");
+    assertNoUngatedNewlineWrite();
+
+    expect(await screen.findByText(/Blocked:/)).toBeDefined();
+  });
+
+  it("still runs a safe pasted command (ALLOW) once gated", async () => {
+    await act(async () => {
+      render(<TerminalEmbed />);
+    });
+    await waitFor(() => expect(capturedOnData).not.toBeNull());
+
+    await sendChunk("\x1b[200~ls -la\x1b[201~\r");
+
+    expect(mockInvoke).toHaveBeenCalledWith("validate_command", { command: "ls -la" });
+    expect(mockPtyWrite).toHaveBeenCalledWith("mock-pty-session", "\r");
+  });
+
+  it("still forwards a genuine (non-paste) escape sequence raw, e.g. arrow-key history recall", async () => {
+    await act(async () => {
+      render(<TerminalEmbed />);
+    });
+    await waitFor(() => expect(capturedOnData).not.toBeNull());
+
+    await sendChunk("\x1b[A");
+
+    expect(mockPtyWrite).toHaveBeenCalledWith("mock-pty-session", "\x1b[A");
+    expect(mockInvoke).not.toHaveBeenCalledWith("validate_command", expect.anything());
+  });
+
+  it("still forwards normal typed characters immediately", async () => {
+    await act(async () => {
+      render(<TerminalEmbed />);
+    });
+    await waitFor(() => expect(capturedOnData).not.toBeNull());
+
+    await typeLine("ls -la");
+    await pressEnter();
+
+    expect(mockInvoke).toHaveBeenCalledWith("validate_command", { command: "ls -la" });
     expect(mockPtyWrite).toHaveBeenCalledWith("mock-pty-session", "\r");
   });
 });
