@@ -694,7 +694,10 @@ pub fn claude_spawn(
     Ok(session_id)
 }
 
-/// Write data to a Claude CLI session's stdin (user messages, approvals).
+/// Send a user message to a Claude CLI session's stdin.
+///
+/// Does NOT relay tool-permission approval responses — see
+/// `ClaudeSession::write`'s doc comment for why.
 #[tauri::command]
 pub fn claude_write(
     session_id: String,
@@ -708,7 +711,7 @@ pub fn claude_write(
     let session = sessions
         .get_mut(&session_id)
         .ok_or_else(|| format!("Claude session not found: {}", session_id))?;
-    session.write(data.as_bytes())
+    session.write(&data)
 }
 
 /// Kill a Claude CLI session.
@@ -721,7 +724,9 @@ pub fn claude_kill(
         .claude_sessions
         .lock()
         .map_err(|e| format!("Lock error: {}", e))?;
-    sessions.remove(&session_id);
+    if let Some(mut session) = sessions.remove(&session_id) {
+        let _ = session.kill();
+    }
     Ok(())
 }
 
