@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-07-27T21:15:00Z by codebase scan -->
+<!-- Last verified: 2026-08-11 by /codebase-mirror -->
 
 # QuoxTerminal — Codebase Map
 
@@ -49,7 +49,10 @@ CodeMirror 6 editing, Rust/Tauri native shell.
 | Rust command modules (dirs) | 10 |
 | Tauri commands (registered in lib.rs) | 42 |
 | Cargo dependencies | 20 |
-| Test files (`*.test.ts` + `*.test.tsx`) | 39 |
+| Tool registry entries (10 categories) | 59 |
+| Terminal themes | 7 |
+| Test files (`*.test.ts` + `*.test.tsx`) | 40 |
+| Rust unit tests (`#[test]`/`#[tokio::test]`) | 74 |
 
 ---
 
@@ -184,7 +187,7 @@ quoxterminal/
 │   │   ├── types/                    # TypeScript definitions
 │   │   │   └── terminal.ts                   # Core terminal types
 │   │   │
-│   │   ├── __tests__/                # Vitest test suites (39 files)
+│   │   ├── __tests__/                # Vitest test suites (40 files)
 │   │   ├── App.tsx                   # Root component
 │   │   └── main.tsx                  # Entry point
 │   │
@@ -545,7 +548,7 @@ Each mode includes a ~200-line system prompt in `config/terminalModes.ts`.
 - Token costs: opus/sonnet/haiku pricing
 
 ### `config/themes.ts`
-- Terminal color schemes (dark, light, solarized, dracula, etc.)
+- 7 terminal color schemes: quox-dark (default), monokai, solarized-dark, dracula, nord, one-dark, catppuccin
 
 ### `tauri.conf.json`
 - App: QuoxTerminal v0.4.1
@@ -599,6 +602,8 @@ log: 0.4, async-trait: 0.1
 - **Orange**: High caution (`dd`, `mkfs`, format)
 - **Amber**: Moderate caution (long-running, network)
 - **Green**: Safe (read-only)
+- **SAFETY-2**: enforcement wired into live paths — `TerminalEmbed` gates typed commands through `validate_command`, `fs/operations.rs` enforces path validation on every write (`fs_write_file` requires a `backup` arg)
+- **SAFETY-3**: bracketed-paste input also routed through the safety gate (pasting a dangerous command no longer bypasses validation)
 
 ### SSH Known Hosts (`ssh/known_hosts.rs`)
 - TOFU verification: Ed25519, RSA, ECDSA
@@ -662,6 +667,21 @@ npm run tauri build  # → src-tauri/target/release/bundle/
 
 ---
 
+## Invariants
+
+| Check | Status | Details |
+|-------|--------|---------|
+| Tauri commands defined vs registered | ✓ pass | 42 `#[tauri::command]` fns, 42 entries in `generate_handler!` |
+| Every `lib/tauri-*.ts` bridge maps to a Rust module | ✓ pass | pty, ssh, claude, fs, collector (+ store plugin) |
+| package.json / Cargo.toml / tauri.conf.json version sync | ✓ pass | all 0.4.1 |
+| Every service/component area has test coverage | ✓ pass | 40 Vitest files + 74 Rust unit tests |
+
+---
+
 ## Recent Changes
 
+- Claude native mode fix: `-p` rejects TTY-backed stdin, was breaking every message (`claude/session.rs`, `commands.rs`)
+- `SAFETY-3`: closed bracketed-paste bypass of the command safety gate (`TerminalEmbed.tsx`)
+- Agent-definition writes fix: `fs_write_file` requires a `backup` arg, caller was omitting it and failing silently (`agentDefinitionService.ts`)
+- `SAFETY-2`: command/path safety enforcement wired into live paths (`commands.rs`, `fs/operations.rs`, `TerminalEmbed.tsx`, `terminalFileService.ts`)
 - `PERIM-SEC`: Uniform TOFU for all SSH key types (was accepting non-Ed25519 without verification)
