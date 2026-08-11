@@ -226,7 +226,7 @@ quoxterminal/
 │   │   │   │
 │   │   │   ├── safety/               # Command denylist
 │   │   │   │   ├── mod.rs                    # Module exports
-│   │   │   │   ├── denylist.rs               # 500+ patterns
+│   │   │   │   ├── denylist.rs               # 25 regex entries
 │   │   │   │   └── validator.rs              # Severity levels
 │   │   │   │
 │   │   │   ├── fs/                   # File operations
@@ -531,7 +531,7 @@ Each mode includes a ~200-line system prompt in `config/terminalModes.ts`.
 ### `config/terminalConfig.ts`
 - Limits: MAX_PANES=4, MAX_WORKSPACES=8, MAX_SCROLLBACK=5000
 - Font: 8-32px (default 14)
-- 40+ keyboard shortcuts (platform-aware)
+- 18 keyboard shortcuts across 8 categories (platform-aware: Cmd on macOS, Ctrl elsewhere)
 
 ### `config/terminalModes.ts`
 - Terminal modes: strict, balanced, builder, audit
@@ -598,10 +598,11 @@ log: 0.4, async-trait: 0.1
 ## Security
 
 ### Command Safety (`safety/denylist.rs`)
-- **Red**: Destructive (`rm -rf`, `chmod 777`, `sudo reboot`)
-- **Orange**: High caution (`dd`, `mkfs`, format)
-- **Amber**: Moderate caution (long-running, network)
-- **Green**: Safe (read-only)
+- 25 regex entries: 12 Red, 7 Orange, 6 Amber (Green is the default for non-matches)
+- **Red**: Destructive (`rm -rf /`, `dd of=/dev/sd*`), blocked
+- **Orange**: High caution (`dd`, `mkfs`, format), requires approval
+- **Amber**: Moderate caution (long-running, network), warn
+- **Green**: Safe (read-only), allow
 - **SAFETY-2**: enforcement wired into live paths — `TerminalEmbed` gates typed commands through `validate_command`, `fs/operations.rs` enforces path validation on every write (`fs_write_file` requires a `backup` arg)
 - **SAFETY-3**: bracketed-paste input also routed through the safety gate (pasting a dangerous command no longer bypasses validation)
 
