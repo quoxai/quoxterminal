@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-11 by /codebase-mirror -->
+<!-- Last verified: 2026-08-13 by /codebase-mirror -->
 
 # QuoxTerminal — Codebase Map
 
@@ -531,7 +531,7 @@ Each mode includes a ~200-line system prompt in `config/terminalModes.ts`.
 ### `config/terminalConfig.ts`
 - Limits: MAX_PANES=4, MAX_WORKSPACES=8, MAX_SCROLLBACK=5000
 - Font: 8-32px (default 14)
-- 18 keyboard shortcuts across 8 categories (platform-aware: Cmd on macOS, Ctrl elsewhere)
+- 17 keyboard shortcuts across 8 categories (platform-aware: Cmd on macOS, Ctrl elsewhere)
 
 ### `config/terminalModes.ts`
 - Terminal modes: strict, balanced, builder, audit
