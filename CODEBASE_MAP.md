@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-08-14 by /codebase-mirror -->
+<!-- Last verified: 2026-08-15 by /codebase-mirror -->
 
 # QuoxTerminal — Codebase Map
 
